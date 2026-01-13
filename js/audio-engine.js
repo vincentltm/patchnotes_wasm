@@ -782,6 +782,450 @@ class RecorderProcessor extends AudioWorkletProcessor {
 registerProcessor('recorder-processor', RecorderProcessor);
 `;
 
+// --- SHEEP WORKLET ---
+const sheepWorkletCode = `
+class SheepProcessor extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+        return [
+            { name: 'knobMain', defaultValue: 0.5 },
+            { name: 'knobX', defaultValue: 0.5 },
+            { name: 'knobY', defaultValue: 0.5 },
+            { name: 'switchState', defaultValue: 1 }, // 0=Freeze, 1=Normal, 2=Loop
+            { name: 'connectedCV1', defaultValue: 0 },
+            { name: 'connectedCV2', defaultValue: 0 },
+            { name: 'connectedPulse1', defaultValue: 0 },
+            { name: 'connectedPulse2', defaultValue: 0 }
+        ];
+    }
+
+    constructor() {
+        super();
+        // Buffer Config
+        // 5 seconds @ 48kHz = 240,000 samples.
+        this.BUFFER_LENGTH = 240000; 
+        this.bufferL = new Float32Array(this.BUFFER_LENGTH);
+        this.bufferR = new Float32Array(this.BUFFER_LENGTH);
+        this.writeHead = 0;
+
+        // Constants
+        this.MAX_GRAINS = 14;
+        this.SAFETY_MARGIN = 120;
+        
+        // Grains
+        this.grains = [];
+        for(let i=0; i<this.MAX_GRAINS; i++) {
+            this.grains.push({
+                active: false,
+                readPos: 0,     // Float for fractional reading
+                sampleCount: 0,
+                startPos: 0,
+                loopSize: 0,
+                looping: false,
+                pulseTriggered: false,
+                speed: 1.0,
+                baselineCtrl: 0,
+                delayDist: 0,
+                spread: 0,
+                size: 1000
+            });
+        }
+
+        // State
+        this.loopMode = false;
+        this.globalSampleCounter = 0;
+        this.lastP1 = 0;
+        
+        // Output pulse counters
+        this.pulse1Counter = 0;
+        this.pulse2Counter = 0;
+        this.stochasticCounter = 0;
+        
+        // Output Value State
+        this.cv1Noise = 0;
+        this.cv2Phase = 0;
+        
+        // Cached calculations
+        this.cachedActiveCount = 0;
+        this.invSampleRate = 1.0 / 48000;
+        
+        // LED downsampling
+        this.ledFrame = 0;
+        this.lastOutL = 0;
+        this.lastOutR = 0;
+    }
+
+    process(inputs, outputs, parameters) {
+        // I/O
+        // In: 0:L, 1:R, 2:CV1, 3:CV2, 4:P1, 5:P2
+        const inL = inputs[0][0] || new Float32Array(128).fill(0);
+        const inR = inputs[1][0] || new Float32Array(128).fill(0);
+        const inCV1 = inputs[2][0] || new Float32Array(128).fill(0);
+        const inCV2 = inputs[3][0] || new Float32Array(128).fill(0);
+        const inP1 = inputs[4][0] || new Float32Array(128).fill(0);
+        const inP2 = inputs[5][0] || new Float32Array(128).fill(0);
+
+        // Out
+        const outL = outputs[0][0];
+        const outR = outputs[1][0];
+        const outCV1 = outputs[2][0];
+        const outCV2 = outputs[3][0];
+        const outP1 = outputs[4][0];
+        const outP2 = outputs[5][0];
+
+        // Params
+        // We'll just take the first value for efficiency (audio-rate changes for these might be overkill)
+        const pMain = parameters.knobMain[0];
+        const pX = parameters.knobX[0];
+        const pY = parameters.knobY[0];
+        const pSw = Math.round(parameters.switchState[0]);
+        const connCV1 = parameters.connectedCV1[0] > 0.5;
+        const connCV2 = parameters.connectedCV2[0] > 0.5;
+        const connP1 = parameters.connectedPulse1[0] > 0.5;
+        const connP2 = parameters.connectedPulse2[0] > 0.5;
+
+        // Process Loop
+        for (let i = 0; i < 128; i++) {
+            this.globalSampleCounter++;
+
+            // --- 1. Audio Recording ---
+            // If not frozen (Switch Up = 0)
+            if (pSw !== 0) {
+                 this.bufferL[this.writeHead] = inL[i];
+                 this.bufferR[this.writeHead] = inR[i];
+            }
+            
+            this.writeHead++;
+            if (this.writeHead >= this.BUFFER_LENGTH) this.writeHead = 0;
+
+            // --- 2. Parameters & Control Logic ---
+            
+            // X Knob: Delay/Spread
+            let delayTime = 0;
+            let spreadAmt = 0; 
+            
+            if (!connCV1) {
+                // X Knob split: Left=Delay, Right=Spread
+                if (pX <= 0.5) {
+                    // Normalize 0..0.5 to 0..1
+                    const normalized = pX * 2.0; 
+                    delayTime = 1200 + (normalized * 78800);
+                } else {
+                    // Spread
+                    delayTime = 20000; 
+                    spreadAmt = (pX - 0.5) * 2.0; // 0..1
+                }
+            } else {
+                // CV1 Connected: X is attenuverter.
+                // Logic handled in Trigger logic
+                delayTime = 20000;
+                spreadAmt = 0;
+            }
+
+            // --- 3. Trigger Logic ---
+            let trig = false;
+            // Pulse 1 rising edge
+            if (inP1[i] > 0.5 && this.lastP1 <= 0.5) trig = true;
+            this.lastP1 = inP1[i];
+
+            // Auto-trigger if needed
+            if (!connP1) {
+                // Check if we need to auto-trigger (no active grains?)
+                if (this.cachedActiveCount === 0) {
+                     // Check Gate P2
+                     if (connP2) {
+                         if (inP2[i] > 0.5) trig = true;
+                     } else {
+                         trig = true;
+                     }
+                }
+            } else {
+               // Ext trigger
+               // Check Gate P2 if connected
+               if (connP2 && inP2[i] < 0.5) trig = false;
+            }
+
+            // Mode Switching Logic
+            if (pSw === 0) { // Frozen
+               // Trig normally
+            } else if (pSw === 2) { // Loop Mode
+                if (!this.loopMode) {
+                    this.loopMode = true;
+                    this.enterLoopMode(pMain, connCV2, inCV2[i]);
+                }
+            } else { // Normal (1)
+                if (this.loopMode) {
+                    this.loopMode = false;
+                    this.exitLoopMode();
+                }
+            }
+
+            if (trig) {
+                this.triggerGrain(pMain, pX, pY, delayTime, spreadAmt, connCV1, inCV1[i], pSw);
+            }
+
+            // --- 4. Render Output ---
+            let mixL = 0; 
+            let mixR = 0;
+            let totalWeight = 0;
+
+            this.updateGrains(pMain, pY, connCV2, inCV2[i], connP1);
+
+            for (let g=0; g<this.MAX_GRAINS; g++) {
+                const gr = this.grains[g];
+                if (gr.active) {
+                    const weight = this.getGrainWeight(gr);
+                    const s = this.readBufferInterpolated(gr.readPos);
+                    mixL += s.l * weight; 
+                    mixR += s.r * weight; 
+                    totalWeight += weight;
+                }
+            }
+            
+            // Normalize
+            let finalL = 0;
+            let finalR = 0;
+            if (totalWeight > 0.001) {
+                finalL = mixL / totalWeight;
+                finalR = mixR / totalWeight;
+            }
+
+            // Outputs
+            if (outL) outL[i] = finalL;
+            if (outR) outR[i] = finalR;
+
+            this.lastOutL = finalL;
+            this.lastOutR = finalR;
+
+            // --- 5. CV/Pulse Outputs ---
+            // CV1: Noise val
+            if (outCV1) outCV1[i] = this.cv1Noise; 
+            
+            // CV2: Phase (Writehead) 0..1
+            this.cv2Phase = this.writeHead / this.BUFFER_LENGTH;
+            if (outCV2) outCV2[i] = this.cv2Phase;
+
+            // Pulse Outputs
+            this.updatePulseOutputs(pX, pY);
+            if (outP1) outP1[i] = this.pulse1Counter > 0 ? 1 : 0;
+            if (outP2) outP2[i] = this.pulse2Counter > 0 ? 1 : 0;
+        }
+
+        // --- LED Feedback ---
+        this.ledFrame++;
+        if (this.ledFrame > 64) {
+            this.ledFrame = 0;
+            this.port.postMessage({
+                L: Math.abs(this.lastOutL),
+                R: Math.abs(this.lastOutR),
+                cv1: (this.cv1Noise + 1) * 0.5,
+                cv2: this.cv2Phase,
+                p1: this.pulse1Counter > 0 ? 1 : 0,
+                p2: this.pulse2Counter > 0 ? 1 : 0
+            });
+        }
+
+        return true;
+    }
+
+    readBufferInterpolated(pos) {
+        let p = pos;
+        while (p < 0) p += this.BUFFER_LENGTH;
+        while (p >= this.BUFFER_LENGTH) p -= this.BUFFER_LENGTH;
+        
+        const idxA = Math.floor(p);
+        const frac = p - idxA;
+        
+        const safeIdxA = idxA % this.BUFFER_LENGTH;
+        const safeIdxB = (idxA + 1) % this.BUFFER_LENGTH;
+
+        const lA = this.bufferL[safeIdxA];
+        const rA = this.bufferR[safeIdxA];
+        const lB = this.bufferL[safeIdxB];
+        const rB = this.bufferR[safeIdxB];
+
+        return {
+            l: lA + (lB - lA) * frac,
+            r: rA + (rB - rA) * frac
+        };
+    }
+
+    triggerGrain(pMain, pX, pY, delayTime, spreadAmt, connCV1, cv1Val, pSw) {
+        // Find free grain
+        let g = null;
+        let activeCount = 0;
+        for(let i=0; i<this.MAX_GRAINS; i++) {
+             if (this.grains[i].active) activeCount++;
+             else if (!g) g = this.grains[i];
+        }
+        this.cachedActiveCount = activeCount;
+
+        if (!g) return; // Full
+
+        g.active = true;
+        this.cachedActiveCount++;
+        
+        // Grain Size from Y
+        const minS = 240; // 5ms
+        const maxS = 48000; // 1s
+        g.size = minS + (pY * (maxS - minS));
+        
+        // Base Pos
+        let basePos = this.writeHead - delayTime;
+        if (basePos < 0) basePos += this.BUFFER_LENGTH;
+        
+        // Target Pos logic
+        let targetPos = basePos;
+        if (connCV1) {
+             // CV1 Position with X Attenuverter
+             const atten = (pX - 0.5) * 2.0; 
+             const offset = cv1Val * atten;
+             const halfBuf = this.BUFFER_LENGTH / 2;
+             targetPos = (this.BUFFER_LENGTH * 0.5) + (offset * halfBuf);
+        } else if (spreadAmt > 0) {
+             // Spread
+             const rnd = (Math.random() - 0.5) * 2.0; // -1..1
+             const maxSpread = this.BUFFER_LENGTH * 0.125; 
+             targetPos = basePos + (rnd * maxSpread * spreadAmt);
+        }
+        
+        // Wrap
+        while (targetPos < 0) targetPos += this.BUFFER_LENGTH;
+        while (targetPos >= this.BUFFER_LENGTH) targetPos -= this.BUFFER_LENGTH;
+        
+        // Write Head Safety (only if not frozen)
+        if (pSw !== 0) {
+            const margin = this.SAFETY_MARGIN;
+            let dist = this.writeHead - targetPos;
+            if (dist < 0) dist += this.BUFFER_LENGTH;
+            if (dist < margin) {
+                targetPos = this.writeHead - margin;
+            }
+        }
+
+        g.readPos = targetPos;
+        g.startPos = targetPos;
+        g.sampleCount = 0;
+        g.pulseTriggered = false;
+        
+        // Initial Speed
+        g.speed = this.calcSpeed(pMain, false, 0); 
+        
+        // New Noise Value for CV1
+        this.cv1Noise = (Math.random() - 0.5) * 2;
+    }
+
+    calcSpeed(pMain, connCV2, cv2Val) {
+         let val = pMain;
+         
+         if (!connCV2) {
+             // Virtual Detents
+             if (Math.abs(val - 0.5) < 0.05) val = 0.5; // Stop
+             if (Math.abs(val - 0.75) < 0.05) val = 0.75; // 1x
+             if (Math.abs(val - 0.25) < 0.05) val = 0.25; // -1x
+         }
+         
+         // Map 0..1 to -2..2
+         let speed = (val - 0.5) * 4.0;
+         
+         if (connCV2) {
+             // CV2 Speed Mod
+             const gain = (pMain - 0.5) * 2;
+             speed = 1.0 + (cv2Val * gain);
+         }
+         return speed;
+    }
+
+    updateGrains(pMain, pY, connCV2, cv2Val, connP1) {
+        const globalSpeed = this.calcSpeed(pMain, connCV2, cv2Val);
+
+        for (let i=0; i<this.MAX_GRAINS; i++) {
+            let g = this.grains[i];
+            if (!g.active) continue;
+            
+            let spd = globalSpeed; 
+            // In loop mode, use global speed? C++ says yes but with baseline offset.
+            // keeping it simple: always use current knob/cv speed
+            
+            g.readPos += spd;
+            g.sampleCount++;
+
+            // Loop / End logic
+            if (g.looping) {
+                 if (g.sampleCount >= g.size) {
+                      g.readPos = g.startPos;
+                      g.sampleCount = 0;
+                      g.pulseTriggered = false;
+                 }
+            } else {
+                 if (g.sampleCount >= g.size) {
+                      g.active = false; 
+                      this.cachedActiveCount--;
+                 }
+            }
+
+            // Pulse Trigger (90%)
+            if (g.active && !g.pulseTriggered) {
+                 const thresh = connP1 ? 0.9 : (0.9 - (pY * 0.8)); // 90% -> 10%
+                 if (g.sampleCount > (g.size * thresh)) {
+                      g.pulseTriggered = true;
+                      this.pulse1Counter = 100;
+                 }
+            }
+        }
+    }
+    
+    getGrainWeight(g) {
+        if (g.looping) return 1.0; 
+        if (g.sampleCount >= g.size) return 0.0;
+        
+        // Hann Window
+        const x = g.sampleCount / g.size; 
+        return 0.5 * (1.0 - Math.cos(2.0 * Math.PI * x));
+    }
+
+    enterLoopMode(pMain, connCV2, cv2Val) {
+        this.cachedActiveCount = 0;
+        let any = false;
+        for(let g of this.grains) {
+            if (g.active) {
+                g.looping = true;
+                any = true;
+                this.cachedActiveCount++;
+            }
+        }
+        if (!any) {
+             this.triggerGrain(pMain, 0.5, 0.5, 0, 0, false, 0, 2); 
+             for(let g of this.grains) { if(g.active) { g.looping=true; break; } }
+        }
+    }
+
+    exitLoopMode() {
+        for(let g of this.grains) {
+            g.looping = false;
+        }
+    }
+
+    updatePulseOutputs(pX, pY) {
+         if (this.pulse1Counter > 0) this.pulse1Counter--;
+         if (this.pulse2Counter > 0) this.pulse2Counter--;
+         
+         // Stochastic Clock
+         const period = 240 + ((1.0 - pY) * 48000 * 0.5); 
+         
+         this.stochasticCounter++;
+         if (this.stochasticCounter > period) {
+             this.stochasticCounter = 0;
+             const rnd = Math.random();
+             if (rnd < pX && this.pulse2Counter <= 0) {
+                 this.pulse2Counter = 100;
+             }
+         }
+    }
+}
+registerProcessor('sheep-processor', SheepProcessor);
+`;
+
+
 
 
 
@@ -2095,6 +2539,10 @@ function buildAudioGraph() {
         const blobTool = new Blob([toolboxWorkletCode], { type: 'application/javascript' });
         const urlTool = URL.createObjectURL(blobTool);
 
+        // 9. Sheep (NEW)
+        const blobSheep = new Blob([sheepWorkletCode], { type: 'application/javascript' });
+        const urlSheep = URL.createObjectURL(blobSheep);
+
         Promise.all([
             audioCtx.audioWorklet.addModule(urlSlopes),
             audioCtx.audioWorklet.addModule(urlRec),
@@ -2103,7 +2551,8 @@ function buildAudioGraph() {
             audioCtx.audioWorklet.addModule(urlHump),
             audioCtx.audioWorklet.addModule(urlSeq),
             audioCtx.audioWorklet.addModule(urlBenj),
-            audioCtx.audioWorklet.addModule(urlTool)
+            audioCtx.audioWorklet.addModule(urlTool),
+            audioCtx.audioWorklet.addModule(urlSheep)
         ]).then(() => {
             audioNodes['workletLoaded'] = true;
             finishBuild();
