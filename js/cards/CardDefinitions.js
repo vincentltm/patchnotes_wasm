@@ -592,6 +592,22 @@ const CARD_LIBRARY = [
         }
     },
     {
+        id: 'network',
+        name: 'Tab Link',
+        num: '111',
+        desc: "WebRTC Audio Link. Connects audio between browser tabs.",
+        class: 'CardNetwork',
+        category: 'Utility',
+        labels: {
+            'knob-large-computer': 'Level',
+            'jack-audio1in': 'In L',
+            'jack-audio2in': 'In R',
+            'jack-audio1out': 'Out L',
+            'jack-audio2out': 'Out R',
+            'switch-3way-computer': 'Link'
+        }
+    },
+    {
         id: 'none',
         name: 'No Card',
         num: '--',

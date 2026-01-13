@@ -1851,12 +1851,11 @@ async function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         buildAudioGraph();
-
-
-
+        await listAudioDevices(); // Populate devices
         showMessage("Audio Engine Initialized", "success");
     }
 }
+
 
 function updateAudioGraph() {
     if (audioCtx) buildAudioGraph();
@@ -1866,41 +1865,60 @@ function updateAudioGraph() {
    INPUT HANDLING (MICROPHONE & MIDI)
    ========================================================================= */
 
-async function initMic() {
-    // Prevent re-initialization
-    if (audioNodes['Mic_Stream']) return;
+let currentMicStream = null;
 
+async function initMic(deviceId = 'default') {
     if (!audioCtx) await initAudio();
 
     try {
-        // 1. Request Stereo Audio if possible
-        const stream = await navigator.mediaDevices.getUserMedia({
+        // If restarting, close old stream
+        if (currentMicStream) {
+            currentMicStream.getTracks().forEach(track => track.stop());
+            currentMicStream = null;
+        }
+
+        // 1. Request Audio with specific device if provided
+        const constraints = {
             audio: {
+                deviceId: deviceId ? { exact: deviceId } : undefined,
                 echoCancellation: false,
                 autoGainControl: false,
                 noiseSuppression: false,
-                channelCount: 2 // Request stereo
+                channelCount: 2
             }
-        });
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        currentMicStream = stream;
 
         const mediaStreamSource = audioCtx.createMediaStreamSource(stream);
 
         // 2. Connect Mic to the "Stereo_Line_In" Hub
         if (audioNodes['Stereo_Line_In']) {
+            if (audioNodes['Mic_Source_Node']) {
+                audioNodes['Mic_Source_Node'].disconnect();
+            }
             mediaStreamSource.connect(audioNodes['Stereo_Line_In']);
+            audioNodes['Mic_Source_Node'] = mediaStreamSource;
         }
 
 
         // 4. Create Splitter for Patch Normalization
-        const splitter = audioCtx.createChannelSplitter(2);
-        mediaStreamSource.connect(splitter);
-        audioNodes['Mic_Splitter'] = splitter;
+        if (!audioNodes['Mic_Splitter']) {
+            const splitter = audioCtx.createChannelSplitter(2);
+            audioNodes['Mic_Splitter'] = splitter;
+        }
+        mediaStreamSource.connect(audioNodes['Mic_Splitter']);
 
         // 5. Update Routing immediately
         updateTapeRouting();
 
         document.getElementById('micToggle').classList.add('mic-is-active');
-        showMessage("Microphone Active (Routed to Ext In)", "success");
+        // Show Settings Button
+        document.getElementById('audioSettingsBtn')?.classList.remove('hidden');
+
+        showMessage("Microphone Active", "success");
+        micEnabled = true;
 
     } catch (err) {
         console.warn("Audio Input Error:", err);
@@ -1908,6 +1926,45 @@ async function initMic() {
         micEnabled = false;
     }
 }
+
+// --- DEVICE ENUMERATION ---
+let audioDevices = { inputs: [], outputs: [] };
+
+async function listAudioDevices() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        audioDevices.inputs = devices.filter(d => d.kind === 'audioinput');
+        audioDevices.outputs = devices.filter(d => d.kind === 'audiooutput');
+
+        // Refresh UI if it exists
+        if (typeof refreshAudioSettingsMenu === 'function') refreshAudioSettingsMenu();
+
+        if (audioDevices.inputs.length > 0 || audioDevices.outputs.length > 0) {
+            document.getElementById('audioSettingsBtn')?.classList.remove('hidden');
+        }
+
+    } catch (e) {
+        console.warn("Could not enumerate devices:", e);
+    }
+}
+
+async function setAudioOutput(deviceId) {
+    if (!audioCtx || typeof audioCtx.setSinkId !== 'function') {
+        showMessage("Output selection not supported by browser", "warning");
+        return;
+    }
+
+    try {
+        await audioCtx.setSinkId(deviceId);
+        showMessage("Audio Output Changed", "success");
+    } catch (e) {
+        console.error(e);
+        showMessage("Failed to set Output", "error");
+    }
+}
+
 
 function initMidi() {
     if (midiAccess) {

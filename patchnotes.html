@@ -78,6 +78,15 @@
                         <line x1="8" y1="23" x2="16" y2="23"></line>
                     </svg>
                 </button>
+                <button id="audioSettingsBtn" class="toolbar-btn hidden" title="Audio I/O Settings"
+                    onclick="toggleAudioSettings()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </button>
                 <button id="midiToggle" class="toolbar-btn btn-group-last" title="MIDI / Keyboard">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <!-- Keys: C, D, E, F (Width ~5 each) -->
@@ -313,6 +322,26 @@
                 <option value="14">14</option>
                 <option value="15">15</option>
                 <option value="16">16</option>
+            </select>
+        </div>
+
+        <div id="audioSettingsMenu" class="hidden"
+            style="position: absolute; top: 60px; left: 50%; transform: translateX(-50%); background: #222; border: 1px solid #444; padding: 10px; border-radius: 6px; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 200px;">
+
+            <div
+                style="font-size: 11px; font-weight: bold; color: #888; margin-bottom: 5px; text-transform: uppercase;">
+                Input Device (Mic)</div>
+            <select id="audioInDeviceSelect" class="themed-input"
+                style="width: 100%; margin-bottom: 10px; font-size: 12px;">
+                <option value="default">Default</option>
+            </select>
+
+            <div
+                style="font-size: 11px; font-weight: bold; color: #888; margin-bottom: 5px; text-transform: uppercase;">
+                Output Device (Speaker)</div>
+            <select id="audioOutDeviceSelect" class="themed-input"
+                style="width: 100%; margin-bottom: 5px; font-size: 12px;">
+                <option value="default">Default</option>
             </select>
         </div>
 
@@ -617,6 +646,7 @@
     <script src="js/cards/UtilityPairDefinitions.js"></script>
     <script src="js/cards/CardUtilityPair.js"></script>
     <script src="js/cards/CardSheep.js"></script>
+    <script src="js/cards/CardNetwork.js"></script>
     <script src="js/cards/CardNoOp.js"></script>
     <script src="js/computer.js"></script>
     <script src="js/tape.js"></script>

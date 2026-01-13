@@ -5228,6 +5228,75 @@ function refreshMidiSettingsMenu() {
     }
 }
 
+// --- AUDIO SETTINGS UI ---
+function toggleAudioSettings() {
+    const menu = document.getElementById('audioSettingsMenu');
+    const btn = document.getElementById('audioSettingsBtn');
+
+    if (menu.classList.contains('hidden')) {
+        menu.classList.remove('hidden');
+        btn.classList.add('btn-active');
+        // Close MIDI menu if open to avoid overlap
+        document.getElementById('midiSettingsMenu')?.classList.add('hidden');
+        document.getElementById('midiSettingsBtn')?.classList.remove('btn-active');
+
+        // Refresh list
+        if (typeof listAudioDevices === 'function') listAudioDevices().then(refreshAudioSettingsMenu);
+        else refreshAudioSettingsMenu();
+
+    } else {
+        menu.classList.add('hidden');
+        btn.classList.remove('btn-active');
+    }
+}
+
+function refreshAudioSettingsMenu() {
+    if (typeof audioDevices === 'undefined') return;
+
+    const inSelect = document.getElementById('audioInDeviceSelect');
+    const outSelect = document.getElementById('audioOutDeviceSelect');
+
+    // Inputs
+    if (inSelect && audioDevices.inputs) {
+        // preserve current value if possible, or get from stream
+        const currentVal = inSelect.value;
+
+        inSelect.innerHTML = '<option value="default">Default</option>';
+        audioDevices.inputs.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.deviceId;
+            opt.textContent = d.label || `Microphone ${d.deviceId.slice(0, 4)}...`;
+            inSelect.appendChild(opt);
+        });
+
+        // Restore selection
+        if (currentMicStream) {
+            const track = currentMicStream.getAudioTracks()[0];
+            if (track) {
+                const settings = track.getSettings();
+                if (settings.deviceId) inSelect.value = settings.deviceId;
+            }
+        }
+    }
+
+    // Outputs
+    if (outSelect && audioDevices.outputs) {
+        const currentVal = outSelect.value;
+        outSelect.innerHTML = '<option value="default">Default</option>';
+        audioDevices.outputs.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.deviceId;
+            opt.textContent = d.label || `Speaker ${d.deviceId.slice(0, 4)}...`;
+            outSelect.appendChild(opt);
+        });
+
+        // Restore
+        if (audioCtx && typeof audioCtx.sinkId !== 'undefined') {
+            outSelect.value = audioCtx.sinkId;
+        }
+    }
+}
+
 // Event Listeners for MIDI Settings
 document.addEventListener('DOMContentLoaded', () => {
     const deviceSel = document.getElementById('midiOutDeviceSelect');
@@ -5263,6 +5332,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof setMidiOutChannel === 'function') {
                 setMidiOutChannel(e.target.value);
             }
+        });
+    }
+
+    // Audio Listeners
+    const aOutSel = document.getElementById('audioOutDeviceSelect');
+    if (aOutSel) {
+        aOutSel.addEventListener('change', (e) => {
+            if (typeof setAudioOutput === 'function') setAudioOutput(e.target.value);
+        });
+    }
+
+    const aInSel = document.getElementById('audioInDeviceSelect');
+    if (aInSel) {
+        aInSel.addEventListener('change', (e) => {
+            // Restart mic with new device
+            if (typeof initMic === 'function') initMic(e.target.value);
         });
     }
 });
