@@ -16,7 +16,7 @@
     --button-bg: #ffffff;
     --button-text: #374151;
     --button-hover: #f3f4f6;
-    --button-active: #ef4444;
+    --button-active: rgba(0, 0, 0, 0.5);
 
     /* Panel & Components */
     --panel-bg: #ffffff;
@@ -2975,4 +2975,256 @@ body.show-labels .note-element {
 /* Optional: Slight transparency for declutter mode cables */
 body.declutter-mode .cable-svg path {
     opacity: 0.8;
+}
+
+/* ==========================================================================
+   KNOB RANGE EDIT OVERLAY & TOOLTIPS
+   ========================================================================== */
+
+/* Use Box-Shadow on the ACTIVE KNOB to dim everything else.
+   This avoids z-index stacking context issues where a separate overlay
+   would cover the knob itself. */
+.component.range-edit-active {
+    /* 500vmax ensures it covers even large screens */
+    box-shadow: 0 0 0 500vmax rgba(0, 0, 0, 0.6);
+    z-index: 2147483647 !important;
+    /* Max Z-Index to stay on top */
+    /* Ensure the shadow doesn't clip if parents have overflow: hidden (body handles it) */
+}
+
+/* Tooltips Removed */
+
+/* Enhance existing handle styles */
+.range-edit-handle {
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    /* Center centering */
+    margin-top: -7px;
+    background-color: #fff;
+    border: 2px solid #000;
+    border-radius: 50%;
+    position: absolute;
+    z-index: 2005;
+    /* Above knob */
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.range-edit-handle:hover {
+    transform: scale(1.2);
+    background-color: #fcd34d;
+    /* Gold */
+}
+
+.custom-knob-bg {
+    background-image: url("images/smallKnob.svg");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center center;
+}
+
+body.dark-mode .custom-knob-bg {
+    background-image: url("images/smallKnob_dark.svg");
+}
+
+/* ==========================================================================
+   FOCUS MODE (Patch Readability)
+   ========================================================================== */
+body.patch-focus-mode #synthBg,
+body.patch-focus-mode .panel-art-img {
+    opacity: 0.15 !important;
+    filter: grayscale(100%) contrast(1.2);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+/* Dim Unused Jacks */
+body.patch-focus-mode .component.jack {
+    opacity: 0.1;
+    transition: opacity 0.3s ease;
+    z-index: 70 !important;
+    /* Below cables (80) */
+}
+
+/* Keep Connected Jacks Bright */
+body.patch-focus-mode .component.jack.focus-connected {
+    opacity: 1.0 !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    /* Highlight active ports */
+}
+
+/* Keep Knobs/Switches/Buttons/LEDs Bright */
+body.patch-focus-mode .component.knob-large,
+body.patch-focus-mode .component.knob-medium,
+body.patch-focus-mode .component.knob-small,
+body.patch-focus-mode .component.switch-2way,
+body.patch-focus-mode .component.switch-3way,
+body.patch-focus-mode .component.button,
+body.patch-focus-mode .component.led,
+body.patch-focus-mode .note-element,
+body.patch-focus-mode .program-card,
+body.patch-focus-mode .pedal {
+    opacity: 1.0 !important;
+    /* Optional: Slight pop */
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Button Active State */
+.toolbar-btn.focus-active {
+    color: var(--text-brand);
+    background-color: var(--bg-hover);
+    border-color: var(--text-brand);
+}
+
+/* ==========================================================================
+   FOCUS MODE UPDATES (Refined)
+   ========================================================================== */
+
+/* 1. Base State: Dim EVERYTHING that isn't connected or edited */
+body.patch-focus-mode .component.knob-large,
+body.patch-focus-mode .component.knob-medium,
+body.patch-focus-mode .component.knob-small,
+body.patch-focus-mode .component.switch-2way,
+body.patch-focus-mode .component.switch-3way,
+body.patch-focus-mode .component.button,
+body.patch-focus-mode .component.led {
+    opacity: 0.5 !important;
+    /* Dim unedited controls */
+    transition: opacity 0.3s ease;
+    filter: grayscale(100%);
+}
+
+/* 2. Highlight Edited Controls */
+body.patch-focus-mode .component.focus-edited {
+    opacity: 1.0 !important;
+    filter: none !important;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3)) !important;
+}
+
+/* 3. Highlight Connected Jacks (Existing rule refinement) */
+body.patch-focus-mode .component.jack.focus-connected {
+    opacity: 1.0 !important;
+    filter: none !important;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+/* 4. Kill the Red Glow on Inactive Buttons in Focus Mode */
+body.patch-focus-mode body.dark-mode #button-1:not([data-state="1"]),
+body.patch-focus-mode body.dark-mode #button-2:not([data-state="1"]),
+body.patch-focus-mode body.dark-mode #button-3:not([data-state="1"]),
+body.patch-focus-mode body.dark-mode #button-4:not([data-state="1"]) {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    opacity: 0.05 !important;
+}
+
+/* 5. Keep Note Elements Visible */
+body.patch-focus-mode .note-element {
+    opacity: 1.0 !important;
+    /* Notes are always manually added, so assuming relevant */
+}
+
+/* Fix Square Jacks in Focus Mode */
+body.patch-focus-mode .component.jack.focus-connected {
+    opacity: 1.0 !important;
+    filter: none !important;
+    box-shadow: none !important;
+    /* Remove shadow from container */
+}
+
+/* Apply shadow to the inner circle instead */
+body.patch-focus-mode .component.jack.focus-connected::before {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8) !important;
+    opacity: 1.0 !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* ==========================================================================
+   LABEL & NOTE VISIBILITY
+   ========================================================================== */
+
+/* Default: Hide Notes */
+.note-element {
+    display: none !important;
+}
+
+/* Show Notes when 'show-labels' class is active on body */
+body.show-labels .note-element {
+    display: block !important;
+}
+
+/* Also ensure card labels respect the logic if they are handled by JS manually, 
+   but this CSS helper allows for pure CSS toggling if needed later. 
+   Currently JS handles .card-label availability. */
+/* ==========================================================================
+   DECLUTTER MODE
+   ========================================================================== */
+
+/* Toggle Button Active State */
+#declutterToggle.btn-active {
+    background-color: var(--color-active) !important;
+    color: var(--page-bg) !important;
+}
+
+/* Optional: Slight transparency for declutter mode cables */
+body.declutter-mode .cable-svg path {
+    opacity: 0.8;
+}
+
+/* ==========================================================================
+   KNOB RANGE EDIT OVERLAY & TOOLTIPS
+   ========================================================================== */
+
+/* Use Box-Shadow on the ACTIVE KNOB to dim everything else.
+   This avoids z-index stacking context issues where a separate overlay
+   would cover the knob itself. */
+.component.range-edit-active {
+    /* 500vmax ensures it covers even large screens */
+    box-shadow: 0 0 0 500vmax rgba(0, 0, 0, 0.6);
+    z-index: 2147483647 !important;
+    /* Max Z-Index to stay on top */
+    /* Ensure the shadow doesn't clip if parents have overflow: hidden (body handles it) */
+}
+
+/* Tooltips Removed */
+
+/* Enhance existing handle styles */
+.range-edit-handle {
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    /* Center centering */
+    margin-top: -7px;
+    background-color: #fff;
+    border: 2px solid #000;
+    border-radius: 50%;
+    position: absolute;
+    z-index: 2005;
+    /* Above knob */
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.range-edit-handle:hover {
+    transform: scale(1.2);
+    background-color: #fcd34d;
+    /* Gold */
+}
+
+.range-edit-handle.min-handle {
+    background-color: #4ade80;
+    /* Green */
+}
+
+.range-edit-handle.max-handle {
+    background-color: #f472b6;
+    /* Pink */
+}
+
+/* Fix MIDI Toggle Rounding when Active (Learn button appears next to it) */
+#midiToggle.btn-active {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-right-width: 0 !important;
 }

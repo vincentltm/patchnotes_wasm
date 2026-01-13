@@ -450,6 +450,11 @@ let pendingLearnTarget = null;
 let midiCcMap = {}; // { "channel_cc": "uicontrol_id" }
 let selectedMidiInput = null;
 let midiHeldNotes = new Set();
+let midiOutputs = [];
+let midiInputs = [];
+let midiOutDeviceId = 'all';
+let midiOutChannel = 'all';
+let midiInDeviceId = 'all';
 
 let scopeAnalyser1 = null, scopeAnalyser2 = null;
 let scopeFreq1 = null, scopeFreq2 = null;

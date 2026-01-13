@@ -1104,8 +1104,12 @@ registerProcessor('twists-processor', TwistsProcessor);
 
 
 /* =========================================================================
+/* =========================================================================
    CORE AUDIO ENGINE & CONTEXT MANAGEMENT
    ========================================================================= */
+
+// --- GLOBALS PROVIDED BY GLOBALS.JS ---
+// audioCtx, audioNodes, isScopeRunning, midiAccess, etc.
 
 function toggleAudio() {
     const btn = document.getElementById('audioToggle');
@@ -1192,9 +1196,6 @@ async function initMic() {
             mediaStreamSource.connect(audioNodes['Stereo_Line_In']);
         }
 
-        // 3. Store references for cleanup
-        audioNodes['Mic_Source'] = mediaStreamSource;
-        audioNodes['Mic_Stream'] = stream;
 
         // 4. Create Splitter for Patch Normalization
         const splitter = audioCtx.createChannelSplitter(2);
@@ -1233,12 +1234,26 @@ function onMIDISuccess(access) {
     const midiBtn = document.getElementById('midiToggle');
     const vk = document.getElementById('virtualKeyboard');
 
-    let inputCount = 0;
+    // --- INPUTS ---
+    inputCount = 0;
+    midiInputs = [];
     const inputs = midiAccess.inputs.values();
     for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
         input.value.onmidimessage = onMIDIMessage;
+        midiInputs.push(input.value);
         inputCount++;
     }
+
+    // --- OUTPUTS ---
+    midiOutputs = [];
+    const outputs = midiAccess.outputs.values();
+    for (let output = outputs.next(); output && !output.done; output = outputs.next()) {
+        midiOutputs.push(output.value);
+    }
+
+    // Refresh UI
+    if (typeof refreshMidiSettingsMenu === 'function') refreshMidiSettingsMenu();
+
 
     if (inputCount === 0) {
         vk.classList.add('is-visible');
@@ -1252,10 +1267,15 @@ function onMIDISuccess(access) {
 
     midiAccess.onstatechange = (e) => {
         if (e.port.type === 'input') onMIDISuccess(midiAccess);
+        if (e.port.type === 'output') onMIDISuccess(midiAccess);
     };
 
-    midiBtn.classList.add('btn-active-blue');
+    midiBtn.classList.add('btn-active'); // Yellow active state
     midiEnabled = true;
+
+    // Show Learn Button
+    const learnBtn = document.getElementById('midiLearnBtn');
+    if (learnBtn) learnBtn.classList.remove('hidden');
 }
 
 function onMIDIFailure(e) {
@@ -1266,26 +1286,53 @@ function onMIDIFailure(e) {
     vk.classList.add('is-visible');
     if (vk.innerHTML === '') initVirtualKeyboard();
 
-    midiBtn.classList.add('btn-active-blue');
+    midiBtn.classList.add('btn-active');
     midiBtn.classList.replace('text-gray-400', 'text-white');
     midiEnabled = true;
+
+    // Show Learn Button (allow learning from virtual keyboard)
+    const learnBtn = document.getElementById('midiLearnBtn');
+    if (learnBtn) learnBtn.classList.remove('hidden');
 
     showMessage("WebMIDI blocked. Using Virtual Keyboard only.", "warning");
 }
 
-function onMIDIMessage(message) {
-    handleMidiMessage(message);
+// Fallback declaration if globals.js didn't load it
+if (typeof midiInChannel === 'undefined') {
+    var midiInChannel = 'all';
 }
 
+function onMIDIMessage(event) {
+    // 1. Filter by Input Device
+    if (midiInDeviceId !== 'all') {
+        if (event.target && event.target.id !== midiInDeviceId) return;
+    }
 
+    // 2. Filter by Input Channel
+    const status = event.data[0];
+    if (status >= 0x80 && status <= 0xEF) { // Voice Messages
+        if (midiInChannel !== 'all') {
+            const ch = (status & 0x0F) + 1;
+            if (ch !== parseInt(midiInChannel)) return;
+        }
+    }
 
-function handleMidiMessage(message, isInternal = false) {
+    handleMidiMessage(event);
+}
+
+function setMidiInChannel(ch) {
+    midiInChannel = ch;
+    // showMessage(`MIDI Input Ch: ${ch === 'all' ? 'All' : ch}`, "info");
+}
+
+function handleMidiMessage(event, isInternal = false) {
     if (!isInternal && !midiEnabled) return;
 
     // Safety check for critical nodes
     if (!audioNodes['Midi_Pitch']) return;
 
-    const [status, data1, data2] = message.data;
+    // Use event.data (renamed param from message to event above)
+    const [status, data1, data2] = event.data;
     const command = status & 0xF0;
     const channel = status & 0x0F;
 
@@ -1363,6 +1410,7 @@ function handleMidiMessage(message, isInternal = false) {
             const el = document.getElementById(pendingLearnTarget);
             if (el) el.classList.remove('learn-active');
 
+
             pendingLearnTarget = null;
             disableMidiLearnMode(); // Auto-exit learn mode after one mapping? Or keep open? 
             // Let's keep it simple: Auto-exit for now to prevent accidental overwrites
@@ -1373,7 +1421,24 @@ function handleMidiMessage(message, isInternal = false) {
         if (midiCcMap[mapKey]) {
             const targetId = midiCcMap[mapKey];
             const normVal = val / 127.0;
-            // Dispatch to UI handler
+
+            // Check if target is a Custom Module Output Jack (CV control)
+            // Jacks usually have IDs like "moduleID_out_Index"
+            // We need to find if there's an audio node associated with this jack.
+            // The globalJackMap (in initAudio) maps jack IDs to AudioNodes!
+            if (globalJackMap && globalJackMap[targetId]) {
+                const node = globalJackMap[targetId];
+                // If it's a ConstantSource/AudioParam, we can control it.
+                // Usually outputs are Gains or ConstantSources. 
+                // For our 'midi' module, they are ConstantSources.
+                if (node instanceof AudioParam) {
+                    safeParam(node, normVal, audioCtx.currentTime);
+                } else if (node.offset instanceof AudioParam) {
+                    safeParam(node.offset, normVal, audioCtx.currentTime);
+                }
+            }
+
+            // Dispatch to UI handler (for visual knobs)
             if (typeof updateKnobFromMidi === 'function') {
                 updateKnobFromMidi(targetId, normVal);
             }
@@ -1478,6 +1543,10 @@ function setupKeyEvents(el, note) {
         e.preventDefault();
         // FIX: Pass 'true' to indicate this is an internal UI event
         handleMidiMessage({ data: [144, note, 127] }, true);
+
+        // SEND TO EXTERNAL MIDI OUT
+        if (typeof sendMidiNoteOn === 'function') sendMidiNoteOn(note, 127);
+
         el.classList.add('active');
     };
 
@@ -1485,6 +1554,10 @@ function setupKeyEvents(el, note) {
         e.preventDefault();
         // FIX: Pass 'true' here as well
         handleMidiMessage({ data: [128, note, 0] }, true);
+
+        // SEND TO EXTERNAL MIDI OUT
+        if (typeof sendMidiNoteOff === 'function') sendMidiNoteOff(note);
+
         el.classList.remove('active');
     };
 
@@ -1806,15 +1879,53 @@ function createCustomModuleNode(module) {
         };
     }
     else if (type === 'midi') {
+        // --- INPUTS (CV to MIDI) ---
+        // 0: Pitch, 1: Gate, 2: CC A, 3: CC B
+        const inPitch = audioCtx.createGain();
+        const inGate = audioCtx.createGain();
+        const inCCA = audioCtx.createGain();
+        const inCCB = audioCtx.createGain();
+
+        // Analysers
+        const anPitch = audioCtx.createAnalyser(); anPitch.fftSize = 32;
+        const anGate = audioCtx.createAnalyser(); anGate.fftSize = 32;
+        const anCCA = audioCtx.createAnalyser(); anCCA.fftSize = 32;
+        const anCCB = audioCtx.createAnalyser(); anCCB.fftSize = 32;
+
+        inPitch.connect(anPitch);
+        inGate.connect(anGate);
+        inCCA.connect(anCCA);
+        inCCB.connect(anCCB);
+
+        // --- OUTPUTS (MIDI to CV) ---
         // Access global MIDI nodes if valid
+        const outputs = [
+            audioNodes['Midi_Pitch'] || null, // Pitch Node (ConstantSource)
+            audioNodes['Midi_Gate'] || null,   // Gate Node (ConstantSource)
+            audioNodes['Midi_Velocity'] || null, // Velocity
+            audioNodes['Midi_Clock'] || null  // Clock
+        ];
+
         return {
             type: 'midi',
-            outputs: [
-                audioNodes['Midi_Pitch'] || null, // Pitch Node (ConstantSource)
-                audioNodes['Midi_Gate'] || null,   // Gate Node (ConstantSource)
-                audioNodes['Midi_Velocity'] || null, // Velocity
-                audioNodes['Midi_Clock'] || null  // Clock
-            ]
+            inputs: [inPitch, inGate, inCCA, inCCB],
+            outputs: outputs,
+            analysers: {
+                pitch: anPitch,
+                gate: anGate,
+                ccA: anCCA,
+                ccB: anCCB
+            },
+            data: {
+                pitch: new Float32Array(32),
+                gate: new Float32Array(32),
+                ccA: new Float32Array(32),
+                ccB: new Float32Array(32),
+                lastGate: 0,
+                lastNote: -1,
+                lastCCA: -1,
+                lastCCB: -1
+            }
         };
     } // Close midi block
 
@@ -2296,8 +2407,18 @@ function finishBuild() {
                 jackMap[`${mod.id}_out_0`] = node.output;
             }
             else if (node.type === 'midi') {
-                if (node.outputs[0]) jackMap[`${mod.id}_out_0`] = node.outputs[0]; // Pitch
-                if (node.outputs[1]) jackMap[`${mod.id}_out_1`] = node.outputs[1]; // Gate
+                if (node.inputs) {
+                    jackMap[`${mod.id}_in_0`] = node.inputs[0];
+                    jackMap[`${mod.id}_in_1`] = node.inputs[1];
+                    jackMap[`${mod.id}_in_2`] = node.inputs[2];
+                    jackMap[`${mod.id}_in_3`] = node.inputs[3];
+                }
+                if (node.outputs) {
+                    jackMap[`${mod.id}_out_0`] = node.outputs[0];
+                    jackMap[`${mod.id}_out_1`] = node.outputs[1];
+                    jackMap[`${mod.id}_out_2`] = node.outputs[2];
+                    jackMap[`${mod.id}_out_3`] = node.outputs[3];
+                }
             }
             else if (node.type === 'mixer') {
                 if (node.inputs) {
@@ -2602,6 +2723,9 @@ function updateAmpMeter() {
     }
     const rms = Math.sqrt(sum / data.length);
     const db = 20 * Math.log10(Math.max(0.001, rms));
+
+    // HOOK: Process External MIDI Modules
+    processExternalMidiModules();
 
     let targetLevel = (db + 40) / 38;
     if (targetLevel < 0) targetLevel = 0;
@@ -2990,3 +3114,164 @@ window.addEventListener('keyup', (e) => {
         if (el) el.classList.remove('active');
     }
 });
+
+// =========================================================================
+// MIDI OUTPUT FUNCTIONS
+// =========================================================================
+
+function setMidiInputDevice(id) {
+    midiInDeviceId = id;
+    console.log("MIDI In Device Set:", id);
+}
+
+function getMidiInputs() {
+    return midiInputs;
+}
+
+function setMidiOutputDevice(id) {
+    midiOutDeviceId = id;
+    console.log("MIDI Out Device Set:", id);
+}
+
+function setMidiOutChannel(ch) {
+    midiOutChannel = ch; // 'all' or 1-16
+    console.log("MIDI Out Channel Set:", ch);
+}
+
+function setMidiInChannel(ch) {
+    midiInChannel = ch; // 'all' or 1-16
+    console.log("MIDI In Channel Set:", ch);
+}
+
+function getMidiOutputs() {
+    return midiOutputs;
+}
+
+function sendMidiMessage(status, data1, data2) {
+    if (!midiAccess || midiOutputs.length === 0) return;
+
+    let finalStatus = status;
+
+    // If it's a channel message (0x80 to 0xEF)
+    if (status >= 0x80 && status <= 0xEF) {
+        if (midiOutChannel !== 'all') {
+            const cmd = status & 0xF0;
+            const ch = parseInt(midiOutChannel) - 1; // 0-15
+            finalStatus = cmd | ch;
+        }
+    }
+
+    const msg = [finalStatus, data1];
+    if (data2 !== undefined) msg.push(data2);
+
+    midiOutputs.forEach(output => {
+        if (midiOutDeviceId === 'all' || output.id === midiOutDeviceId) {
+            // console.log(`[MIDI DEBUG] Sending to ${output.name}:`, msg);
+            output.send(msg);
+        } else {
+            // console.log(`[MIDI DEBUG] Skipping ${output.name} (Target: ${midiOutDeviceId})`);
+        }
+    });
+}
+
+function sendMidiNoteOn(note, velocity) {
+    sendMidiMessage(0x90, note, velocity);
+}
+
+function sendMidiNoteOff(note) {
+    sendMidiMessage(0x80, note, 0);
+}
+
+function sendMidiCC(cc, value) {
+    sendMidiMessage(0xB0, cc, value);
+}
+
+
+// Ensure this exists
+if (typeof midiOutJackCc === 'undefined') var midiOutJackCc = {};
+
+function processExternalMidiModules() {
+    if (typeof CUSTOM_MODULES === 'undefined' || !audioNodes) return;
+
+    // Global Loop Check (e.g. 1% chance)
+    const debug = true;
+    // if (Math.random() < 0.001) console.log("MIDI Process Heartbeat");
+
+    CUSTOM_MODULES.forEach(mod => {
+        if (mod.config.type !== 'midi') return;
+
+        const node = audioNodes[mod.id];
+        if (!node || !node.analysers) {
+            // console.warn("MIDI Module missing analysers:", mod.id); 
+            return;
+        }
+
+        const d = node.data;
+
+        // 1. Read Inputs
+        node.analysers.pitch.getFloatTimeDomainData(d.pitch);
+        node.analysers.gate.getFloatTimeDomainData(d.gate);
+        node.analysers.ccA.getFloatTimeDomainData(d.ccA);
+        node.analysers.ccB.getFloatTimeDomainData(d.ccB);
+
+        const cvPitch = d.pitch[0];
+        const cvGate = d.gate[0];
+
+        // LOG INPUTS
+        if (Math.random() < 0.05) {
+            console.log(`[MIDI EXT DEBUG] ${mod.id}: P=${cvPitch.toFixed(2)} G=${cvGate.toFixed(2)}`);
+        }
+
+        // --- NOTE LOGIC (with Hysteresis) ---
+        // Treat lastGate as the "State" (0 = Low, 1 = High)
+        // Rising Threshold: 0.5
+        // Falling Threshold: 0.4
+
+        const currentState = d.lastGate > 0.5; // Derive boolean from stored state (assuming we store 0 or 1)
+        let newState = currentState;
+
+        // Valid Gate is usually 0V to 1V (after normalisation/clipping) or higher.
+        // Input is likely raw audio.
+        if (!currentState && cvGate > 0.5) {
+            // RISING EDGE
+            newState = true;
+            const pitchNote = Math.max(0, Math.min(127, Math.round(60 + (cvPitch * 12 * 5))));
+            const vel = 100;
+
+            console.log(`[MIDI EXT] Note On: ${pitchNote}`);
+            sendMidiNoteOn(pitchNote, vel);
+            d.lastNote = pitchNote;
+
+        } else if (currentState && cvGate < 0.4) {
+            // FALLING EDGE
+            newState = false;
+
+            if (d.lastNote > -1) {
+                console.log(`[MIDI EXT] Note Off: ${d.lastNote}`);
+                sendMidiNoteOff(d.lastNote);
+                d.lastNote = -1;
+            }
+        }
+
+        // Store STATE (0.0 or 1.0) instead of raw CV to maintain hysteresis memory
+        d.lastGate = newState ? 1.0 : 0.0;
+
+        // --- CC LOGIC ---
+        const processCC = (val, jackId, lastKey) => {
+            const vSafe = Math.max(-1, Math.min(1, val));
+            const uni = (vSafe + 1) * 0.5;
+            const ccVal = Math.round(uni * 127);
+
+            if (midiOutJackCc && midiOutJackCc[jackId] !== undefined) {
+                const ccNum = midiOutJackCc[jackId];
+                if (d[lastKey] !== ccVal) {
+                    sendMidiCC(ccNum, ccVal);
+                    d[lastKey] = ccVal;
+                }
+            }
+        };
+
+        processCC(d.ccA[0], `${mod.id}_in_2`, 'lastCcA');
+        processCC(d.ccB[0], `${mod.id}_in_3`, 'lastCcB');
+    });
+}

@@ -1225,6 +1225,21 @@ function updateKnobAngle(el, val, isTouched = true) {
         value: val,
         isTouched: isTouched
     };
+
+    // --- MIDI CC OUTPUT FOR CUSTOM KNOBS ---
+    if (el.dataset.midiCc && typeof sendMidiCC === 'function') {
+        const ccNum = parseInt(el.dataset.midiCc);
+        // Map val (-150 to 150) to 0-127
+        // -150 = 0, +150 = 127. Range = 300.
+        // (val + 150) / 300 * 127
+        const ccVal = Math.round(((val + 150) / 300) * 127);
+        const clampedVal = Math.max(0, Math.min(127, ccVal));
+
+        // Use global output channel
+        const ch = (typeof midiOutChannel !== 'undefined' && midiOutChannel !== 'all') ? parseInt(midiOutChannel) : 1;
+        sendMidiCC(ch, ccNum, clampedVal);
+    }
+
     updateAudioParams();
     updateFocusState();
 }
@@ -1674,7 +1689,120 @@ function stopSwitchDrag(e) {
     currentSwitchEl = null;
 }
 
-// --- 6. MENUS & TOOLS ----------------------------------------------------
+// --- 6. KNOB VALUE REGISTRY ----------------------------------------------
+
+/**
+ * Registry for knob value conversions.
+ * Maps knob ID patterns (regex string) to conversion logic.
+ */
+const KnobParameterRegistry = [
+    {
+        // OSC Frequency (Large Knobs on VCO)
+        pattern: /knob-large-osc[12]$/,
+        unit: 'Hz',
+        // Angle (-150..150) -> Hz
+        toValue: (angle) => {
+            const center = 130.81; // C3
+            if (angle >= 0) {
+                // 0 to +150: 130.81Hz -> 26500Hz
+                return center * Math.pow(26500 / center, angle / 150);
+            } else {
+                // 0 to -150: 130.81Hz -> 0.5Hz
+                return center * Math.pow(0.5 / center, Math.abs(angle) / 150);
+            }
+        },
+        // Hz -> Angle (-150..150)
+        toAngle: (val) => {
+            const center = 130.81;
+            if (val >= center) {
+                // val = center * (26500/center)^(angle/150)
+                // log(val/center) = (angle/150) * log(26500/center)
+                // angle = 150 * log(val/center) / log(26500/center)
+                const ratio = val / center;
+                if (ratio <= 1) return 0;
+                const angle = 150 * Math.log(ratio) / Math.log(26500 / center);
+                return Math.min(150, angle);
+            } else {
+                // val = center * (0.5/center)^(abs_angle/150)
+                // log(val/center) = (abs_angle/150) * log(0.5/center)
+                const ratio = val / center;
+                if (ratio >= 1) return 0;
+                // abs_angle = 150 * log(ratio) / log(0.5/center)
+                const absAngle = 150 * Math.log(ratio) / Math.log(0.5 / center);
+                return Math.max(-150, -absAngle);
+            }
+        }
+    },
+    {
+        // Filter Cutoff
+        pattern: /knob-large-filter[12]$/,
+        unit: 'Hz',
+        // Angle -> Hz
+        toValue: (angle) => {
+            // Map -150..150 to 20Hz..20kHz (Exponential)
+            // 20 * 1000 ^ ((angle+150)/300)
+            const norm = (angle + 150) / 300;
+            return 20 * Math.pow(1000, norm);
+        },
+        // Hz -> Angle
+        toAngle: (val) => {
+            if (val < 20) val = 20;
+            if (val > 20000) val = 20000;
+            // val = 20 * 1000^norm
+            // val/20 = 1000^norm
+            // log10(val/20) = norm * 3
+            // norm = log10(val/20) / 3
+            const norm = Math.log10(val / 20) / 3;
+            return (norm * 300) - 150;
+        }
+    },
+    {
+        // Fine Tune
+        pattern: /knob-small-osc[12]fine$/,
+        unit: 'cents',
+        toValue: (angle) => {
+            // +/- 279 cents approx
+            const totalCents = 1200 * Math.log2(1.38); // ~558 total
+            return (angle / 150) * (totalCents / 2);
+        },
+        toAngle: (val) => {
+            const totalCents = 1200 * Math.log2(1.38);
+            const max = totalCents / 2;
+            let a = (val / max) * 150;
+            return Math.max(-150, Math.min(150, a));
+        }
+    },
+    {
+        // Generic 0-1 Normal (e.g. Volumes, Mixes)
+        // Matches many standard things
+        pattern: /knob-large-computer|knob-small-[xy]|knob-large-mix|knob-large-vol|knob-large-main|knob-small-vca/,
+        unit: '%',
+        toValue: (angle) => {
+            // -150..150 -> 0..100
+            return ((angle + 150) / 300) * 100;
+        },
+        toAngle: (val) => {
+            return (val / 100) * 300 - 150;
+        }
+    },
+    {
+        // Linear FM/Amount Knobs (0..1 map)
+        pattern: /knob-small-.*fm$|knob-small-.*res$|knob-small-.*amt$/,
+        unit: '%',
+        toValue: (angle) => {
+            return ((angle + 150) / 300) * 100;
+        },
+        toAngle: (val) => {
+            return (val / 100) * 300 - 150;
+        }
+    }
+];
+
+function getKnobRegistryEntry(id) {
+    return KnobParameterRegistry.find(entry => entry.pattern.test(id));
+}
+
+// --- 7. MENUS & TOOLS ----------------------------------------------------
 
 function showContextMenu(e, pedalId = null) {
     e.preventDefault();
@@ -1689,6 +1817,7 @@ function showContextMenu(e, pedalId = null) {
     if (pedalId) {
         const rmv = menu.querySelector('[data-action="removePedal"]');
         rmv.style.display = 'block';
+        rmv.classList.remove('hidden');
         rmv.textContent = `Remove ${PEDAL_DEFINITIONS[pedalId].name}`;
     }
     else if (el.classList.contains('jack')) {
@@ -1728,7 +1857,15 @@ function showContextMenu(e, pedalId = null) {
         menu.querySelector('[data-action="addPedal"]').style.display = 'block';
     }
     if (el.dataset.type && el.dataset.type.startsWith('knob')) {
-        menu.querySelector('[data-action="setValue"]').style.display = 'block';
+        const setValue = menu.querySelector('[data-action="setValue"]');
+        setValue.style.display = 'block';
+        setValue.classList.remove('hidden');
+
+        const resetBtn = menu.querySelector('[data-action="resetValue"]');
+        if (resetBtn) {
+            resetBtn.style.display = 'block';
+            resetBtn.classList.remove('hidden');
+        }
 
         let rangeBtn = menu.querySelector('[data-action="setRange"]');
         if (!rangeBtn) {
@@ -1738,6 +1875,7 @@ function showContextMenu(e, pedalId = null) {
             menu.appendChild(rangeBtn);
         }
         rangeBtn.style.display = 'block';
+        rangeBtn.classList.remove('hidden');
     }
     else if (contextTarget === null || contextTarget.classList.contains('card-slot-container') || contextTarget.classList.contains('program-card')) {
         let cardBtn = menu.querySelector('[data-action="changeCard"]');
@@ -1757,7 +1895,9 @@ function showContextMenu(e, pedalId = null) {
         const r = menu.querySelector('[data-action="reset"]');
         r.style.display = 'block'; r.textContent = 'Reset Default';
         if (el.dataset.type && el.dataset.type.startsWith('knob')) {
-            menu.querySelector('[data-action="setValue"]').style.display = 'block';
+            const setValue = menu.querySelector('[data-action="setValue"]');
+            setValue.style.display = 'block';
+            setValue.classList.remove('hidden');
         }
     }
 
@@ -1886,22 +2026,32 @@ function initRangeEditMode(knobEl) {
     if (path) path.style.display = 'block';
     updateKnobRangeVisuals(knobEl);
 
-    // Helper to position handles
+    // 4. (Visuals handled by .range-edit-active CSS Box Shadow)
+    updateKnobRangeVisuals(knobEl);
+
+    // 5. Place Handles
     const placeHandle = (angle, cls) => {
         const h = document.createElement('div');
         h.className = `range-edit-handle ${cls}`;
 
-        const rect = knobEl.getBoundingClientRect();
-        const rad = (angle - 90) * Math.PI / 180;
-        const radius = rect.width * 0.65;
+        // FIX ZOOM ISSUES: Use offsetWidth (internal unscaled size)
+        // do NOT use getBoundingClientRect for styling relative to parent
+        const w = knobEl.offsetWidth;
+        const hDim = knobEl.offsetHeight;
 
-        const x = (rect.width / 2) + (radius * Math.cos(rad));
-        const y = (rect.height / 2) + (radius * Math.sin(rad));
+        const rad = (angle - 90) * Math.PI / 180;
+
+        // Use CONSTANT GAP (12px) instead of relative multiplier
+        // This makes spacing "consistent" across knob sizes
+        const radius = (w / 2) + 14;
+
+        const x = (w / 2) + (radius * Math.cos(rad));
+        const y = (hDim / 2) + (radius * Math.sin(rad));
 
         h.style.left = `${x}px`;
         h.style.top = `${y}px`;
 
-        // Add listeners for both Mouse and Touch
+        // Add listeners
         h.addEventListener('mousedown', (e) => startRangeHandleDrag(e, cls.includes('min-handle')));
         h.addEventListener('touchstart', (e) => startRangeHandleDrag(e, cls.includes('min-handle')), { passive: false });
 
@@ -1922,10 +2072,15 @@ function startRangeHandleDrag(e, isMin) {
     e.stopPropagation();
     e.preventDefault();
 
+    // Use GBCR only for Angle Calculation (absolute screen coords)
     const rect = currentRangeKnob.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    const radius = rect.width * 0.55;
+
+    // For Positioning (Unscaled)
+    const localW = currentRangeKnob.offsetWidth;
+    const localH = currentRangeKnob.offsetHeight;
+    const radius = (localW / 2) + 14;
 
     // Initialize Tracker
     let cx = e.clientX || (e.touches ? e.touches[0].clientX : 0);
@@ -1954,16 +2109,10 @@ function startRangeHandleDrag(e, isMin) {
     };
 
     const updateLoop = () => {
-        if (!currentRangeKnob) {
-            isFramePending = false;
-            return;
-        }
+        if (!currentRangeKnob) { isFramePending = false; return; }
 
         const compState = componentStates[currentRangeKnob.id];
-        if (!compState || !compState.range) {
-            isFramePending = false;
-            return;
-        }
+        if (!compState || !compState.range) { isFramePending = false; return; }
 
         // 1. Current Angle
         let deg = (Math.atan2(currentY - centerY, currentX - centerX) * 180 / Math.PI) + 90;
@@ -1977,22 +2126,19 @@ function startRangeHandleDrag(e, isMin) {
         if (delta < -180) delta += 360;
         lastDeg = deg;
 
-        // 3. Apply Delta to target Handle
-        // We read the *current* state value and add the delta
+        // 3. Apply Delta
         let currentVal = isMin ? compState.range[0] : compState.range[1];
         let newVal = currentVal + delta;
 
         // 4. Hard Limits
         newVal = Math.max(-150, Math.min(150, newVal));
 
-        // 5. Min/Max Collision Logic
+        // 5. Min/Max Collision
         if (isMin) {
-            // Don't let Min cross Max
             const curMax = compState.range[1];
-            if (newVal >= curMax) newVal = curMax - 1; // Keep 1 degree gap
+            if (newVal >= curMax) newVal = curMax - 1;
             compState.range[0] = newVal;
         } else {
-            // Don't let Max cross Min
             const curMin = compState.range[0];
             if (newVal <= curMin) newVal = curMin + 1;
             compState.range[1] = newVal;
@@ -2005,8 +2151,9 @@ function startRangeHandleDrag(e, isMin) {
         const h = isMin ? rangeHandleMin : rangeHandleMax;
 
         if (h) {
-            h.style.left = `${(rect.width / 2) + radius * Math.cos(rad)}px`;
-            h.style.top = `${(rect.height / 2) + radius * Math.sin(rad)}px`;
+            // Unscaled positioning
+            h.style.left = `${(localW / 2) + radius * Math.cos(rad)}px`;
+            h.style.top = `${(localH / 2) + radius * Math.sin(rad)}px`;
         }
 
         // Push knob value if range overtook it
@@ -2034,6 +2181,9 @@ function startRangeHandleDrag(e, isMin) {
 function checkRangeEditClickOutside(e) {
     // Close edit mode if clicking anywhere other than the active knob or its handles
     if (currentRangeKnob && !currentRangeKnob.contains(e.target)) {
+        // Enforce Modal Blocking:
+        e.preventDefault();
+        e.stopPropagation();
         exitRangeEditMode();
     }
 }
@@ -3505,9 +3655,59 @@ window.onload = function () {
             const l = await CustomDialog.prompt("Cable Label:", contextCable.label || '');
             if (l !== null) { contextCable.label = l; redrawCables(); saveState(); }
         }
+        else if (act === 'resetValue' && contextTarget) {
+            resetKnob(contextTarget);
+            updateAudioParams();
+        }
         else if (act === 'setValue' && contextTarget) {
-            const v = await CustomDialog.prompt("Value (-150 to 150):", '0');
-            if (v !== null && !isNaN(v)) { updateKnobAngle(contextTarget, parseFloat(v)); contextTarget.classList.add('is-touched'); saveState(); }
+            const entry = getKnobRegistryEntry(contextTarget.id);
+            let currentVal = 0;
+            let currentAngle = contextTarget.getAttribute('data-angle') ? parseFloat(contextTarget.getAttribute('data-angle')) : (componentStates[contextTarget.id]?.value || 0);
+
+            // Fix: read correctly from saved state if attribute missing (initial load)
+            if (isNaN(currentAngle)) currentAngle = 0;
+
+            let promptMsg = "Value (%):";
+            let defVal = (((currentAngle + 150) / 300) * 100).toFixed(1);
+
+            if (entry) {
+                const val = entry.toValue(currentAngle);
+                promptMsg = `Value (${entry.unit}):`;
+                defVal = val.toFixed(2);
+            }
+
+            const input = await CustomDialog.prompt(promptMsg, defVal);
+
+            if (input !== null) {
+                // Remove non-numeric chars except . and - (e.g. "440Hz" -> "440")
+                const cleanInput = input.replace(/[^\d.-]/g, '');
+                if (!cleanInput) return;
+
+                const val = parseFloat(cleanInput);
+                if (isNaN(val)) return;
+
+                let newAngle = val;
+                if (entry) {
+                    newAngle = entry.toAngle(val);
+                } else {
+                    newAngle = (val / 100.0) * 300 - 150;
+                }
+
+                // Clamp
+                if (newAngle > 150) newAngle = 150;
+                if (newAngle < -150) newAngle = -150;
+
+                updateKnobAngle(contextTarget, newAngle);
+                contextTarget.classList.add('is-touched');
+
+                // Ensure state is saved with the ID
+                if (!componentStates[contextTarget.id]) componentStates[contextTarget.id] = {};
+                componentStates[contextTarget.id].value = newAngle;
+                componentStates[contextTarget.id].isTouched = true;
+
+                saveState();
+                updateAudioParams(); // Immediate update
+            }
         }
         else if (act === 'reset' && contextTarget) {
             if (contextTarget.classList.contains('jack')) {
@@ -3868,7 +4068,7 @@ function initExternalGearUI() {
                     set('VCA', 2, 1, 2);
                     break;
                 case 'midi':
-                    set('MIDI Interface', 0, 4, 0);
+                    set('MIDI Interface', 4, 4, 0);
                     break;
                 case 'mixer':
                     set('Mixer', 3, 1, 3);
@@ -3925,6 +4125,10 @@ function initExternalGearUI() {
             knobLabels[`_knob_0`] = "Gain";
             knobLabels[`_knob_1`] = "CV Amt";
         } else if (type === 'midi') {
+            jackLabels[`_in_0`] = "Pitch";
+            jackLabels[`_in_1`] = "Gate";
+            jackLabels[`_in_2`] = "CC A";
+            jackLabels[`_in_3`] = "CC B";
             jackLabels[`_out_0`] = "Pitch";
             jackLabels[`_out_1`] = "Gate";
             jackLabels[`_out_2`] = "Vel";
@@ -4480,6 +4684,32 @@ function renderCustomModuleToDOM(moduleDef) {
                 }
 
                 const knobWrapper = createCustomKnob(knobId, currentLabel, moduleDef);
+
+                // --- SPECIAL: MIDI CC INPUTS ---
+                if (config.type === 'midi') {
+                    const ccInput = document.createElement('input');
+                    ccInput.type = 'number';
+                    ccInput.className = 'val-input'; // Re-use value input styling
+                    ccInput.style.width = '30px';
+                    ccInput.style.marginTop = '2px';
+                    ccInput.style.fontSize = '9px';
+                    ccInput.style.textAlign = 'center';
+                    ccInput.value = i === 0 ? 74 : 71; // Defaults
+                    ccInput.title = "MIDI CC Number";
+
+                    // Prevent key events bubbling
+                    ccInput.addEventListener('mousedown', e => e.stopPropagation());
+
+                    // Dynamic Attribute to store CC number
+                    knobWrapper.dataset.midiCc = ccInput.value;
+
+                    ccInput.addEventListener('change', (e) => {
+                        knobWrapper.dataset.midiCc = e.target.value;
+                    });
+
+                    knobWrapper.appendChild(ccInput);
+                }
+
                 knobContainer.appendChild(knobWrapper);
             }
             modEl.appendChild(knobContainer);
@@ -4528,6 +4758,8 @@ function renderCustomModuleToDOM(moduleDef) {
 
                 SYSTEM_CONFIG[jackId] = { type: 'jack', x: '0', y: '0', label: currentLabel, isCustom: true };
                 const jack = createCustomJack(jackId, currentLabel, moduleDef, 'out');
+
+
                 jackContainer.appendChild(jack);
             }
 
@@ -4774,8 +5006,29 @@ function createCustomJack(id, label, moduleDef, type = 'any') {
             if (!mod.config.jackLabels) mod.config.jackLabels = {};
             mod.config.jackLabels[id] = newLabel;
             saveState();
+
+            // MIDI CC Parsing: INPUT Jacks 2 and 3 for 'midi' module
+            // Format "CC A" -> "74" maps JackID -> 74 for Outgoing Logic
+            if (mod.config.type === 'midi' && (id.endsWith('_in_2') || id.endsWith('_in_3'))) {
+                // Parse number
+                const num = parseInt(newLabel.replace(/\D/g, ''));
+                if (!isNaN(num) && num >= 0 && num <= 127) {
+                    if (typeof midiOutJackCc === 'undefined') window.midiOutJackCc = {};
+                    midiOutJackCc[id] = num;
+                    console.log(`MIDI Out Map: ${id} -> CC ${num}`);
+                }
+            }
         }
     });
+
+    // Initial Parse
+    if (moduleDef.config.type === 'midi' && (id.endsWith('_in_2') || id.endsWith('_in_3'))) {
+        const num = parseInt(label.replace(/\D/g, ''));
+        if (!isNaN(num)) {
+            if (typeof midiOutJackCc === 'undefined') window.midiOutJackCc = {};
+            midiOutJackCc[id] = num;
+        }
+    }
 
     wrapper.appendChild(el);
     wrapper.appendChild(inp);
@@ -4864,33 +5117,157 @@ function toggleMIDI() {
     const vk = document.getElementById('virtualKeyboard');
     if (midiEnabled) {
         midiEnabled = false;
+        // Fix for "yellow toggle": match the class used in initMidi (btn-active-blue or similar)
+        // Actually, user wants it "yellow" (implied active state). The CSS usually handles 'btn-active'.
+        // Let's ensure we strip all potential active classes.
         btn?.classList.remove('midi-is-active');
         btn?.classList.remove('btn-active');
+        btn?.classList.remove('btn-active-blue');
         vk?.classList.remove('is-visible');
-        vk?.classList.remove('is-visible'); // remove duplicate if exists or just ensure it's gone
-        showMessage("MIDI Input Disabled", "warning");
 
-        // Hide Learn Button & Disable Mode
+        // Hide Settings Button too if MIDI disabled
+        const settingsBtn = document.getElementById('midiSettingsBtn');
+        if (settingsBtn) settingsBtn.classList.add('hidden');
+
+        // Hide Learn Button
         const learnBtn = document.getElementById('midiLearnBtn');
         if (learnBtn) learnBtn.classList.add('hidden');
-        if (btn) btn.classList.add('btn-group-last'); // Make MIDI toggle round
-        if (typeof disableMidiLearnMode === 'function') disableMidiLearnMode();
-    } else {
-        midiEnabled = true;
-        btn?.classList.add('midi-is-active');
-        btn?.classList.add('btn-active');
-        vk?.classList.add('is-visible');
-        if (window.initMidi) window.initMidi();
-        if (window.initMidi) window.initMidi();
-        showMessage("MIDI Enabled (Virtual + External)", "success");
 
-        // Show Learn Button
-        const learnBtn = document.getElementById('midiLearnBtn');
-        if (learnBtn) learnBtn.classList.remove('hidden');
-        if (btn) btn.classList.remove('btn-group-last'); // Restore square edge
+        // Hide menu if open
+        const menu = document.getElementById('midiSettingsMenu');
+        if (menu && !menu.classList.contains('hidden')) {
+            menu.classList.add('hidden');
+            settingsBtn?.classList.remove('btn-active');
+        }
+
+        showMessage("MIDI Disabled", "neutral");
+    } else {
+        initMidi(); // Request Access
+        // (Button active state handled in onMIDISuccess)
+
+        // Show Settings Button
+        const settingsBtn = document.getElementById('midiSettingsBtn');
+        if (settingsBtn) settingsBtn.classList.remove('hidden');
     }
-    updateAudioGraph();
 }
+
+function toggleMidiSettings() {
+    const menu = document.getElementById('midiSettingsMenu');
+    const btn = document.getElementById('midiSettingsBtn');
+
+    if (menu.classList.contains('hidden')) {
+        menu.classList.remove('hidden');
+        btn.classList.add('btn-active');
+        refreshMidiSettingsMenu();
+    } else {
+        menu.classList.add('hidden');
+        btn.classList.remove('btn-active');
+    }
+}
+
+// --- MIDI MENU POPULATION ---
+function refreshMidiSettingsMenu() {
+    const outSelect = document.getElementById('midiOutDeviceSelect');
+    const inSelect = document.getElementById('midiInDeviceSelect'); // Capture Input Select
+
+    // 1. Populate OUTPUTS
+    if (outSelect) {
+        // Clear existing options (keep "All")
+        outSelect.innerHTML = '<option value="all">All Devices</option>';
+
+        if (typeof getMidiOutputs === 'function') {
+            const outputs = getMidiOutputs();
+            outputs.forEach(output => {
+                const opt = document.createElement('option');
+                opt.value = output.id;
+                opt.textContent = output.name || `Device ${output.id}`;
+                outSelect.appendChild(opt);
+            });
+        }
+
+        // Restore Output selection
+        if (typeof midiOutDeviceId !== 'undefined') {
+            outSelect.value = midiOutDeviceId;
+        }
+    }
+
+    // 2. Populate INPUTS
+    if (inSelect) {
+        // Clear existing options (keep "All")
+        inSelect.innerHTML = '<option value="all">All Devices</option>';
+
+        if (typeof getMidiInputs === 'function') {
+            const inputs = getMidiInputs(); // Ensure this exists in audio-engine.js and returns full objects
+            inputs.forEach(input => {
+                const opt = document.createElement('option');
+                opt.value = input.id;
+                opt.textContent = input.name || `Device ${input.id}`;
+                inSelect.appendChild(opt);
+            });
+        }
+
+        // Restore Input selection
+        if (typeof midiInDeviceId !== 'undefined') {
+            inSelect.value = midiInDeviceId;
+        }
+    }
+
+    // --- Input Channel Logic ---
+    const inChanSel = document.getElementById('midiInChannelSelect');
+    if (inChanSel) {
+        inChanSel.innerHTML = '<option value="all">All (Omni)</option>';
+        for (let i = 1; i <= 16; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `Channel ${i}`;
+            inChanSel.appendChild(opt);
+        }
+        if (typeof midiInChannel !== 'undefined') {
+            inChanSel.value = midiInChannel;
+        }
+    }
+}
+
+// Event Listeners for MIDI Settings
+document.addEventListener('DOMContentLoaded', () => {
+    const deviceSel = document.getElementById('midiOutDeviceSelect');
+    if (deviceSel) {
+        deviceSel.addEventListener('change', (e) => {
+            if (typeof setMidiOutputDevice === 'function') {
+                setMidiOutputDevice(e.target.value);
+            }
+        });
+    }
+
+    const inSel = document.getElementById('midiInDeviceSelect');
+    if (inSel) {
+        inSel.addEventListener('change', (e) => {
+            if (typeof setMidiInputDevice === 'function') {
+                setMidiInputDevice(e.target.value);
+            }
+        });
+    }
+
+    const inChanSel = document.getElementById('midiInChannelSelect');
+    if (inChanSel) {
+        inChanSel.addEventListener('change', (e) => {
+            if (typeof setMidiInChannel === 'function') {
+                setMidiInChannel(e.target.value);
+            }
+        });
+    }
+
+    const chanSel = document.getElementById('midiOutChannelSelect');
+    if (chanSel) {
+        chanSel.addEventListener('change', (e) => {
+            if (typeof setMidiOutChannel === 'function') {
+                setMidiOutChannel(e.target.value);
+            }
+        });
+    }
+});
+
+
 
 // --- FOCUS MODE ---
 let isFocusMode = false;
