@@ -229,21 +229,28 @@ const CARD_LIBRARY = [
     },
     {
         id: 'cvmod',
-        name: 'CVMod',
+        name: 'CV Mod',
         num: '14',
         desc: "Quad CV delay inspired by Make Noise Multimod.",
-        class: 'CardNoOp',
+        class: 'CardCVMod',
         category: 'Modulation',
         labels: {
-            'knob-large-computer': 'Speed',
-            'knob-small-x': 'Duration',
-            'knob-small-y': 'Phase',
-            'switch-3way-computer': 'Motion',
+            'knob-large-computer': 'Head Speed',
+            'knob-small-x': 'Loop Time',
+            'knob-small-y': 'Head Phase',
+            'switch-3way-computer': 'Mode/Reset',
             'jack-audio1in': 'CV Rec',
-            'jack-cv1out': 'CV 1',
-            'jack-cv2out': 'CV 2',
-            'jack-audio1out': 'CV 3',
-            'jack-audio2out': 'CV 4'
+            'jack-audio2in': 'Speed Mod',
+            'jack-cv1in': 'Time Mod',
+            'jack-cv2in': 'Phase Mod',
+            'jack-cv1out': 'Head 3',
+            'jack-cv2out': 'Head 4',
+            'jack-audio1out': 'Head 1',
+            'jack-audio2out': 'Head 2',
+            'jack-pulse1in': 'Reset',
+            'jack-pulse2in': 'Function',
+            'jack-pulse1out': 'Unused',
+            'jack-pulse2out': 'Loop End'
         }
     },
     {

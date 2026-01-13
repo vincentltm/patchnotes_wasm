@@ -782,6 +782,256 @@ class RecorderProcessor extends AudioWorkletProcessor {
 registerProcessor('recorder-processor', RecorderProcessor);
 `;
 
+// --- CVMOD WORKLET ---
+const cvmodWorkletCode = `
+class CVModProcessor extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+        return [
+            { name: 'knobMain', defaultValue: 0.5 },
+            { name: 'knobX', defaultValue: 0.5 },
+            { name: 'knobY', defaultValue: 0.5 },
+            { name: 'switchState', defaultValue: 1 }
+        ];
+    }
+
+    constructor() {
+        super();
+        this.BUFFER_LENGTH = 384000; // 8s at 48kHz
+        this.buffer = new Float32Array(this.BUFFER_LENGTH);
+        this.pow2_128 = new Float32Array(128);
+
+        // Precompute Pow2 table (emulating C++ table)
+        // C++: f=2^26, f *= 2^(1/128).
+        // It's basically an exponential lookup.
+        // We can just use Math.pow in JS, optimization likely not critical unless heavy.
+        
+        this.loopSize = 96000;
+        this.loopIndex = 0;
+        this.playbackPhase = [0, 0, 0, 0];
+        this.recordPhase = 0;
+        
+        this.sampleCount = 0;
+        
+        this.pulseFlashCounter = 0;
+        this.resetTrigger = false;
+        this.nextFunctionTrigger = false;
+        this.lastSwitch = 1;
+
+        this.function = 0; // 0=Ramp, 1=Saw, 2=Tri, 3=Sin, 4=Steps
+        this.funcLeds = [1, 3, 2, 6, 4]; // Bitmasks
+
+        this.lastExtraRecordingIndex = 0;
+        
+        this.ledFrame = 0;
+        this.speedZero = false;
+    }
+
+    process(inputs, outputs, parameters) {
+        // In: 0:Rec, 1:SpeedCV, 2:TimeCV, 3:PhaseCV, 4:Rst, 5:Tog
+        const inRec = inputs[0][0] || new Float32Array(128).fill(0);
+        const inSpeed = inputs[1][0] || new Float32Array(128).fill(0);
+        const inTime = inputs[2][0] || new Float32Array(128).fill(0);
+        const inPhase = inputs[3][0] || new Float32Array(128).fill(0);
+        const inP1 = inputs[4][0] || new Float32Array(128).fill(0);
+        const inP2 = inputs[5][0] || new Float32Array(128).fill(0);
+
+        // Out: 0:H1, 1:H2, 2:H3, 3:H4
+        const out1 = outputs[0][0];
+        const out2 = outputs[1][0];
+        const out3 = outputs[2][0];
+        const out4 = outputs[3][0];
+
+        const pMain = parameters.knobMain[0];
+        const pX = parameters.knobX[0];
+        const pY = parameters.knobY[0];
+        const pSwitch = Math.round(parameters.switchState[0]);
+
+        // Detect Switch Edges
+        // 0=Up (Toggle Func), 1=Mid, 2=Down (Reset)
+        if (pSwitch !== this.lastSwitch) {
+            if (pSwitch === 2 && this.lastSwitch !== 2) this.resetTrigger = true; // Down Edge -> Reset
+            if (pSwitch === 0 && this.lastSwitch !== 0) this.nextFunctionTrigger = true; // Up Edge -> Next Function
+            this.lastSwitch = pSwitch;
+        }
+
+        for (let i = 0; i < 128; i++) {
+            // Pulse Triggers
+            if (inP1[i] > 0.5 && this.lastP1 <= 0.5) this.resetTrigger = true;
+            this.lastP1 = inP1[i];
+            
+            if (inP2[i] > 0.5 && this.lastP2 <= 0.5) this.nextFunctionTrigger = true;
+            this.lastP2 = inP2[i];
+
+
+            if (this.nextFunctionTrigger) {
+                this.function = (this.function + 1) % 5;
+                this.nextFunctionTrigger = false;
+            }
+
+            // Controls
+            let phaseKnob = (pY * 4095) + (inPhase[i] * 2048); // 0..4095
+            phaseKnob = Math.max(0, Math.min(4095, phaseKnob));
+
+            let timeKnobVal = (pX * 4095) + (inTime[i] * 2048);
+            timeKnobVal = Math.max(0, Math.min(4095, timeKnobVal));
+
+            // Speed Knob (-1900 to 1900 approx)
+            let speedKnob = (pMain * 4096) - 2048; 
+            // Deadzone
+            if (speedKnob > 100) speedKnob -= 100;
+            else if (speedKnob < -100) speedKnob += 100;
+            else speedKnob = 0;
+
+            speedKnob += (inSpeed[i] * 2048);
+            speedKnob = Math.max(-1900, Math.min(1900, speedKnob));
+            
+            this.speedZero = (speedKnob === 0);
+
+            // Loop Size
+            // C++: Pow2(39125 + timeKnob*7)
+            // Range: 39125 to 67790
+            // Pow2 maps these to some range.
+            // If we assume a similar exponential mapping:
+            // Shortest: ~62ms, Longest: ~8s.
+            // 48kHz sample logic.
+            const minS = 3000; // ~62ms
+            const maxS = 380000; 
+            
+            // Logarithmic mapping for X?
+            // Simple exponential: min * (max/min)^k
+            const ratio = maxS / minS; // ~126
+            // k = timeKnobVal / 4095
+            const k = timeKnobVal / 4095.0;
+            this.loopSize = Math.floor(minS * Math.pow(ratio, k));
+            
+            if (this.loopSize >= this.BUFFER_LENGTH) this.loopSize = this.BUFFER_LENGTH - 1;
+
+            this.loopIndex++;
+            if (this.loopIndex >= this.loopSize) {
+                this.loopIndex = 0;
+                this.pulseFlashCounter = 2400; // Flash
+            }
+
+            // Loop Increment (32-bit phase space)
+            // 2^32 / loopSize
+            const loopIncrement = 4294967296.0 / this.loopSize;
+            this.recordPhase = (this.loopIndex / this.loopSize) * 4294967296.0;
+
+            let recVal = inRec[i];
+            this.buffer[this.loopIndex] = recVal;
+            
+            // Playback Phase Advance
+            for (let h=0; h<4; h++) {
+                // Exponential Rate Logic
+                // s = speedKnob (-1900..1900)
+                // k = 2 * (2*h - 3) -> coeff per head (-6, -2, 2, 6)
+                // multiplier = 2 ^ (s * k / 4096)
+                
+                const s = speedKnob; 
+                const coeff = 2 * (2*h - 3);
+                
+                // Avoid heavy Math.pow every sample if possible, but 4x per sample is likely fine on modern engines.
+                // Optimize: (s*k)/4096
+                const power = (s * coeff) / 4096.0;
+                const multiplier = Math.pow(2, power);
+                
+                const rate = loopIncrement * multiplier;
+                
+                this.playbackPhase[h] += rate;
+            }
+
+            if (this.resetTrigger) {
+                for(let h=0; h<4; h++) this.playbackPhase[h] = this.recordPhase;
+                this.resetTrigger = false;
+            }
+
+            // Calc Positions
+            const readPos = [];
+            for(let h=0; h<4; h++) {
+                let p = this.playbackPhase[h];
+                // Subtract Phase Knob offset
+                // phaseKnob * i * 262144 (large offset)
+                // We are in 32-bit domain.
+                const offset = phaseKnob * h * 10000000; // scale up
+                p -= offset;
+                
+                // Function Transform
+                p = this.applyFunction(this.function, p);
+                
+                // Map to buffer
+                // (p * loopSize) >> 32
+                // JS: p / 2^32 * loopSize
+                const norm = (p >>> 0) / 4294967296.0;
+                let sIdx = norm * this.loopSize;
+                
+                // Wrap safely
+                while(sIdx < 0) sIdx += this.loopSize;
+                while(sIdx >= this.loopSize) sIdx -= this.loopSize;
+                
+                readPos[h] = sIdx;
+            }
+
+            // Output
+            if (out1) out1[i] = this.readSmooth(readPos[0]);
+            if (out2) out2[i] = this.readSmooth(readPos[1]);
+            if (out3) out3[i] = this.readSmooth(readPos[2]);
+            if (out4) out4[i] = this.readSmooth(readPos[3]);
+        }
+        
+        // LEDs
+        this.ledFrame++;
+        if (this.ledFrame > 64) {
+            this.ledFrame = 0;
+            if (this.pulseFlashCounter > 0) this.pulseFlashCounter -= 100;
+            
+            this.port.postMessage({
+                leds: this.funcLeds[this.function],
+                speedZero: this.speedZero,
+                flash: this.pulseFlashCounter > 0
+            });
+        }
+
+        return true;
+    }
+
+    readSmooth(pos) {
+        const iA = Math.floor(pos);
+        const iB = (iA + 1) % this.loopSize;
+        const frac = pos - iA;
+        return this.buffer[iA] + (this.buffer[iB] - this.buffer[iA]) * frac;
+    }
+
+    applyFunction(type, phase) {
+        // Phase is signed 32-int treated.
+        // We use JS numbers, so convert to signed 32 range -2^31 .. 2^31 approx?
+        // Or normalized 0..1?
+        // Let's use normalized 0..1 from the earlier (p >>> 0) logic, but do func first.
+        
+        // Let's treat phase as 0..1 float for easier math, wrapping 1->0
+        let p = (phase >>> 0) / 4294967296.0;
+        
+        switch(type) {
+            case 0: // Ramp
+                return phase; 
+            case 1: // Saw (Inverted Ramp)
+                return (-p) * 4294967296.0;
+            case 2: // Tri
+                // 0..0.5 -> 0..1, 0.5..1 -> 1..0
+                if (p < 0.5) return (p * 2) * 4294967296.0;
+                else return ((1.0 - p) * 2) * 4294967296.0;
+            case 3: // Sin
+                return (0.5 - 0.5 * Math.cos(2 * Math.PI * p)) * 4294967296.0;
+            case 4: // Steps
+                // Quantize to 16 steps
+                const steps = 16;
+                return (Math.floor(p * steps) / steps) * 4294967296.0;
+        }
+        return phase;
+    }
+}
+registerProcessor('cvmod-processor', CVModProcessor);
+`;
+
 // --- SHEEP WORKLET ---
 const sheepWorkletCode = `
 class SheepProcessor extends AudioWorkletProcessor {
@@ -2543,6 +2793,10 @@ function buildAudioGraph() {
         const blobSheep = new Blob([sheepWorkletCode], { type: 'application/javascript' });
         const urlSheep = URL.createObjectURL(blobSheep);
 
+        // 10. CV Mod (NEW)
+        const blobCVMod = new Blob([cvmodWorkletCode], { type: 'application/javascript' });
+        const urlCVMod = URL.createObjectURL(blobCVMod);
+
         Promise.all([
             audioCtx.audioWorklet.addModule(urlSlopes),
             audioCtx.audioWorklet.addModule(urlRec),
@@ -2552,7 +2806,8 @@ function buildAudioGraph() {
             audioCtx.audioWorklet.addModule(urlSeq),
             audioCtx.audioWorklet.addModule(urlBenj),
             audioCtx.audioWorklet.addModule(urlTool),
-            audioCtx.audioWorklet.addModule(urlSheep)
+            audioCtx.audioWorklet.addModule(urlSheep),
+            audioCtx.audioWorklet.addModule(urlCVMod)
         ]).then(() => {
             audioNodes['workletLoaded'] = true;
             finishBuild();
