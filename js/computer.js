@@ -21,8 +21,8 @@ function swapComputerCard(typeIdOrName) {
     // Fallback logic
     if (!cardDef) {
         if (typeIdOrName === 'none') cardDef = AVAILABLE_CARDS.find(c => c.id === 'none');
-        // Default to the first available real card if requested one is missing
-        else cardDef = AVAILABLE_CARDS.find(c => c.id === 'reverb') || AVAILABLE_CARDS[0];
+        // If no match, leave slot empty rather than defaulting to a card
+        else cardDef = AVAILABLE_CARDS.find(c => c.id === 'none') || AVAILABLE_CARDS[0];
     }
 
     // Double check we actually found something (edge case: library only has 1 broken item)
@@ -379,7 +379,7 @@ function renderCardSlot() {
     const slot = document.createElement('div');
     slot.className = 'card-slot-container';
     slot.id = 'computerCardSlot';
-    slot.title = "Left-Click: Cycle | Right-Click: Select Menu";
+    slot.title = "Click to open card library";
 
     const tooltip = document.createElement('div');
     tooltip.className = 'card-tooltip';
@@ -462,63 +462,21 @@ function renderCardSlot() {
 
     // --- INTERACTION LOGIC ---
 
-    const handleSwap = (e) => {
-        // Prevent default browser zooming/scrolling if on touch
+    const handleOpenLibrary = (e) => {
         if (e.cancelable) e.preventDefault();
         e.stopPropagation();
-
-        // On Mouse, only allow Left Click (button 0).
-        if (e.type === 'mousedown' && e.button !== 0) return;
-
-        slot.classList.add('insert');
-        setTimeout(() => {
-            cycleNextCard();
-            slot.classList.remove('insert');
-            slot.classList.add('eject');
-
-            const cardEl = slot.querySelector('.program-card');
-            if (cardEl) cardEl.style.opacity = '1';
-
-            setTimeout(() => slot.classList.remove('eject'), 150);
-        }, 150);
+        openCardSelector();
     };
 
     // Add listeners for both Mouse and Touch
     slot.addEventListener('mousedown', (e) => {
-        if (e.button === 0) handleSwap(e);
+        if (e.button === 0) handleOpenLibrary(e);
     });
 
-    // Touch Handling (Tap vs Long Press)
-    let touchTimer = null;
-    let longPressOccurred = false;
-
-    slot.addEventListener('touchstart', (e) => {
-        if (e.touches.length !== 1) return;
-        longPressOccurred = false;
-        touchTimer = setTimeout(() => {
-            longPressOccurred = true;
-            openCardSelector();
-        }, 500); // 500ms for long press
-    }, { passive: true });
-
+    // Touch: tap opens the library
     slot.addEventListener('touchend', (e) => {
-        if (touchTimer) {
-            clearTimeout(touchTimer);
-            touchTimer = null;
-        }
-        if (!longPressOccurred) {
-            handleSwap(e);
-        }
-        longPressOccurred = false;
+        handleOpenLibrary(e);
     });
-
-    slot.addEventListener('touchmove', (e) => {
-        // If finger moves significantly, cancel the potential long press
-        if (touchTimer) {
-            clearTimeout(touchTimer);
-            touchTimer = null;
-        }
-    }, { passive: true });
 
     // Right Click (Still supported for desktop)
     slot.addEventListener('contextmenu', (e) => {
