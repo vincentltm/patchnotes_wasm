@@ -1354,7 +1354,7 @@ const CARD_LIBRARY = [
         creator: 'Tom Whitwell',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/00_Simple_MIDI'
-    }
+    },
     {
         id: 'usb_audio_bridge',
         name: 'USB Audio & MIDI',
@@ -1379,7 +1379,7 @@ const CARD_LIBRARY = [
         creator: 'Vincent Maurer (vincentmaurer.de)',
         license: 'GPL-3.0',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/06_usb_audio'
-    }
+    },
     {
         id: 'cirpy_wavetable',
         name: 'Cirpy Wavetable',
@@ -1398,7 +1398,7 @@ const CARD_LIBRARY = [
         creator: 'Tod Kurt (@todbot)',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/30_cirpy_wavetable'
-    }
+    },
     {
         id: 'backyard_rain',
         name: 'Backyard Rain',
@@ -1410,7 +1410,7 @@ const CARD_LIBRARY = [
         creator: 'Brian Dorsey',
         license: '',
         repository: 'https://codeberg.org/briandorsey/mtmws_cards'
-    }
+    },
     {
         id: 'turing_machine',
         name: 'Turing Machine',
@@ -1435,7 +1435,7 @@ const CARD_LIBRARY = [
         creator: 'Tom Whitwell',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/03_Turing_Machine'
-    }
+    },
     {
         id: 'byo_benjolin',
         name: 'BYO Benjolin',
@@ -1460,7 +1460,7 @@ const CARD_LIBRARY = [
         creator: 'Dune Desormeaux',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/04_BYO_Benjolin'
-    }
+    },
     {
         id: 'clockwork',
         name: 'Clockwork',
@@ -1481,7 +1481,7 @@ const CARD_LIBRARY = [
         creator: 'Vincent Maurer',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/26_clockwork'
-    }
+    },
     {
         id: 'castle_process',
         name: 'Castle Process',
@@ -1500,7 +1500,7 @@ const CARD_LIBRARY = [
         creator: 'Adrian Vos',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/43_Castle_Process'
-    }
+    },
     {
         id: 'west_coast_lpg',
         name: 'West Coast LPG',
@@ -1512,7 +1512,7 @@ const CARD_LIBRARY = [
         creator: 'Jason Moore',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/81_West_Coast_LPG'
-    }
+    },
     {
         id: 'origami',
         name: 'Origami',
@@ -1524,7 +1524,7 @@ const CARD_LIBRARY = [
         creator: 'Jason Moore',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/83_Origami'
-    }
+    },
     {
         id: 'cosmik_c1zzl3',
         name: 'Cosmik C1Zzl3',
@@ -1545,7 +1545,7 @@ const CARD_LIBRARY = [
         creator: 'Music Thing Modular',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/84_CosmikC1zzl3'
-    }
+    },
     {
         id: 'fr330hfr33',
         name: 'Fr330Hfr33',
@@ -1563,7 +1563,7 @@ const CARD_LIBRARY = [
         creator: 'Music Thing Modular',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/87_fr330hfr33'
-    }
+    },
     {
         id: 'pantograph',
         name: 'Pantograph',
@@ -1588,7 +1588,7 @@ const CARD_LIBRARY = [
         creator: 'Kenny Shen',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/90_Pantograph'
-    }
+    },
     {
         id: 'chorgan',
         name: 'Chorgan',
@@ -1613,7 +1613,7 @@ const CARD_LIBRARY = [
         creator: 'Andy Jenkinson (uglifruit)',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/91_chorgan'
-    }
+    },
     {
         id: 'turing_matrix',
         name: 'Turing Matrix',
@@ -1634,7 +1634,7 @@ const CARD_LIBRARY = [
         creator: 'Music Thing Modular',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/93_Turing_Matrix'
-    }
+    },
     {
         id: 'offair2',
         name: 'OffAir',
@@ -1659,7 +1659,7 @@ const CARD_LIBRARY = [
         creator: 'Andy Jenkinson (uglifruit)',
         license: 'CC BY-SA 4.0',
         repository: 'https://github.com/uglifruit/Workshop_Computer'
-    }
+    },
     {
         id: 'cathode',
         name: 'Cathode Ray',
