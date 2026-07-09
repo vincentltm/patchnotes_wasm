@@ -81,11 +81,6 @@ extern "C" {
     void run_card_divcom();
 }
 extern "C" {
-    void set_thread_globals_twists(CardGlobals* inst);
-    void set_core1_thread_twists(bool is_core1);
-    void run_card_twists();
-}
-extern "C" {
     void set_thread_globals_goldfish(CardGlobals* inst);
     void set_core1_thread_goldfish(bool is_core1);
     void run_card_goldfish();
@@ -184,11 +179,6 @@ extern "C" {
     void set_thread_globals_freq_shift(CardGlobals* inst);
     void set_core1_thread_freq_shift(bool is_core1);
     void run_card_freq_shift();
-}
-extern "C" {
-    void set_thread_globals_compulidean(CardGlobals* inst);
-    void set_core1_thread_compulidean(bool is_core1);
-    void run_card_compulidean();
 }
 extern "C" {
     void set_thread_globals_od(CardGlobals* inst);
@@ -406,7 +396,6 @@ WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_bumpers, set_core1_thread_bumpers, run_card_bumpers },
     { set_thread_globals_bytebeat, set_core1_thread_bytebeat, run_card_bytebeat },
     { set_thread_globals_divcom, set_core1_thread_divcom, run_card_divcom },
-    { set_thread_globals_twists, set_core1_thread_twists, run_card_twists },
     { set_thread_globals_goldfish, set_core1_thread_goldfish, run_card_goldfish },
     { set_thread_globals_am_coupler, set_core1_thread_am_coupler, run_card_am_coupler },
     { set_thread_globals_noisebox, set_core1_thread_noisebox, run_card_noisebox },
@@ -427,7 +416,6 @@ WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_drumdrum, set_core1_thread_drumdrum, run_card_drumdrum },
     { set_thread_globals_dual_quant, set_core1_thread_dual_quant, run_card_dual_quant },
     { set_thread_globals_freq_shift, set_core1_thread_freq_shift, run_card_freq_shift },
-    { set_thread_globals_compulidean, set_core1_thread_compulidean, run_card_compulidean },
     { set_thread_globals_od, set_core1_thread_od, run_card_od },
     { set_thread_globals_knots, set_core1_thread_knots, run_card_knots },
     { set_thread_globals_blackbird, set_core1_thread_blackbird, run_card_blackbird },
@@ -490,7 +478,7 @@ EMSCRIPTEN_KEEPALIVE void init_card(int card_idx) {
     
     g_active_wasm_card_idx = card_idx;
     
-    if (card_idx < 0 || card_idx >= 70) return;
+    if (card_idx < 0 || card_idx >= 68) return;
     
     // Sync new card thread local globals
     g_card_functions[card_idx].set_thread_globals(&g_wasm_card_globals);

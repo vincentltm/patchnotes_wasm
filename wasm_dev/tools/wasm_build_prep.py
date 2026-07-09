@@ -1938,7 +1938,7 @@ def generate_wasm_card_map():
 
     new_map_block = '\n'.join(lines)
 
-    wrapper_path = os.path.join('js', 'cards', 'WasmCardWrapper.js')
+    wrapper_path = os.path.join('..', 'js', 'cards', 'WasmCardWrapper.js')
     with open(wrapper_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
