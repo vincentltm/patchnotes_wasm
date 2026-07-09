@@ -3394,7 +3394,7 @@ function loadState(state) {
             updateKnobRangeVisuals(el);
         }
     });
-    const targetCardId = state.activeCardId || 'reverb';
+    const targetCardId = state.activeCardId || 'none';
     swapComputerCard(targetCardId);
 
     // RESTORE UTILITY PAIR STATE
