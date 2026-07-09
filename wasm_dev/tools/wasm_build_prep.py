@@ -1913,6 +1913,44 @@ def generate_makefile_wasm(rules):
         f.write('\n'.join(out))
     print("Generated Makefile.wasm successfully.")
 
+def generate_wasm_card_map():
+    """Rewrite the WASM_CARD_MAP block in js/cards/WasmCardWrapper.js
+    to exactly match the CARDS list indices. Never edit the map manually."""
+    # Map from wasm internal name -> CardDefinitions.js id
+    WASM_TO_JS_ID = {
+        'simple_midi':    'midi',
+        'turing_machine': 'turing',
+        'byo_benjolin':   'benjolin',
+        'usb_audio_bridge': 'usb_audio',
+        'cirpy_wavetable': 'cirpy',
+        'backyard_rain':  'rain',
+    }
+
+    lines = []
+    lines.append('// Mapping from JS Card ID \u2192 WASM Card Index (0-based, matches g_card_functions[] in WasmCardBridge.cpp)')
+    lines.append('// DO NOT edit manually \u2014 regenerate by running tools/wasm_build_prep.py')
+    lines.append('const WASM_CARD_MAP = {')
+    for i, wasm_name in enumerate(CARDS):
+        js_id = WASM_TO_JS_ID.get(wasm_name, wasm_name)
+        comment = f'  // {wasm_name}' if js_id != wasm_name else ''
+        lines.append(f"    '{js_id}':{' ' * max(1, 18 - len(js_id))}{i},{comment}")
+    lines.append('};')
+
+    new_map_block = '\n'.join(lines)
+
+    wrapper_path = os.path.join('js', 'cards', 'WasmCardWrapper.js')
+    with open(wrapper_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    import re
+    # Replace everything from the start comment to the closing };
+    pattern = r'// Mapping from JS Card ID.*?^\};'
+    new_content = re.sub(pattern, new_map_block, content, count=1, flags=re.DOTALL | re.MULTILINE)
+
+    with open(wrapper_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+    print(f"Generated WASM_CARD_MAP in {wrapper_path} ({len(CARDS)} cards).")
+
 def prepare_resources():
     print("Preparing WebAssembly card resources...")
     res_dest = "build_wasm/res"
@@ -2082,7 +2120,10 @@ def main():
     
     # 3. Generate Makefile.wasm
     generate_makefile_wasm(rules)
-    
+
+    # 4. Sync WASM_CARD_MAP in WasmCardWrapper.js
+    generate_wasm_card_map()
+
     print("Build preparation complete!")
 
 if __name__ == '__main__':
