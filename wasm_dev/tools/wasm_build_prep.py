@@ -2,7 +2,7 @@ import os
 import re
 import shutil
 
-VCV_WORKSPACE_PATH = "../../../Workshop_Computer_VCV"
+VCV_WORKSPACE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../Workshop_Computer_VCV"))
 
 CARDS = [
     "simple_midi", "turing_machine", "byo_benjolin", "chord_blimey", "usb_audio_bridge",
@@ -16,7 +16,9 @@ CARDS = [
     "grains", "glitter", "tapegrade", "fifths", "krell",
     "glitch", "lochovibes", "bitphase", "markov", "voices_of_sid",
     "stretchcore", "trace", "degenerator", "motorik", "wild_pebble",
-    "talker", "computer_grids", "tesserae", "duo_midi", "toolbox"
+    "talker", "computer_grids", "tesserae", "duo_midi", "toolbox",
+    "clockwork", "castle_process", "west_coast_lpg", "origami", "cosmik_c1zzl3",
+    "fr330hfr33", "pantograph", "chorgan", "turing_matrix", "offair2", "cathode"
 ]
 
 def preprocess_main_loops(src_path, content):
@@ -1468,7 +1470,7 @@ def generate_bridge():
     out.append('    ')
     out.append('    g_active_wasm_card_idx = card_idx;')
     out.append('    ')
-    out.append('    if (card_idx < 0 || card_idx >= 60) return;')
+    out.append(f'    if (card_idx < 0 || card_idx >= {len(CARDS)}) return;')
     out.append('    ')
     out.append('    // Sync new card thread local globals')
     out.append('    g_card_functions[card_idx].set_thread_globals(&g_wasm_card_globals);')

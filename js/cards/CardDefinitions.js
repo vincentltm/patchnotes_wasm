@@ -777,9 +777,9 @@ const CARD_LIBRARY = [
         desc: "General MIDI SF2 Polyphonic Multisampler",
         class: 'CardNoOp',
         category: 'Voice',
-        creator: 'Music Thing Modular',
-        license: 'MIT',
-        repository: ''
+        creator: 'Vincent Maurer & Antigravity',
+        license: '',
+        repository: 'https://github.com/vincentltm/Workshop_Computer_VCV/tree/main/deps/external/46_rompler'
     },
     {
         id: 'nzt',
@@ -1312,6 +1312,313 @@ const CARD_LIBRARY = [
         creator: 'Music Thing Modular',
         license: 'MIT',
         repository: ''
+    },
+    {
+        id: 'simple_midi',
+        name: 'Simple MIDI',
+        num: '00',
+        desc: 'Takes USB midi, sends it to pulse and CV outputs, also sends knob positions and CV inputs back to the computer as CC values.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'CV CC Source 1',
+            'jack-cv2in': 'CV CC Source 2',
+            'jack-cv1out': 'MIDI Pitch CV 1',
+            'jack-cv2out': 'MIDI Pitch CV 2',
+            'jack-pulse1out': 'Gate 1',
+            'jack-pulse2out': 'Gate 2'
+        },
+        creator: 'Tom Whitwell',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/00_Simple_MIDI'
+    }
+    {
+        id: 'usb_audio_bridge',
+        name: 'USB Audio & MIDI',
+        num: '06',
+        desc: '6-Channel USB Audio & MIDI firmware with CV/Gate support',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Audio Input 1',
+            'jack-audio2in': 'Audio Input 2',
+            'jack-cv1in': 'CV Input 1',
+            'jack-cv2in': 'CV Input 2',
+            'jack-pulse1in': 'Pulse Input 1',
+            'jack-pulse2in': 'Pulse Input 2',
+            'jack-audio1out': 'Audio Output 1',
+            'jack-audio2out': 'Audio Output 2',
+            'jack-cv1out': 'CV Output 1',
+            'jack-cv2out': 'CV Output 2',
+            'jack-pulse1out': 'Pulse Output 1',
+            'jack-pulse2out': 'Pulse Output 2'
+        },
+        creator: 'Vincent Maurer (vincentmaurer.de)',
+        license: 'GPL-3.0',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/06_usb_audio'
+    }
+    {
+        id: 'cirpy_wavetable',
+        name: 'Cirpy Wavetable',
+        num: '30',
+        desc: 'Wavetable oscillator that using wavetables from Plaits, Braids, and Microwave,',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'Pitch CV',
+            'jack-cv2in': 'Wavetable Position Mod',
+            'jack-pulse1out': 'PWM Audio Out A',
+            'jack-pulse2out': 'PWM Audio Out B',
+            'jack-cv1out': 'Wavetable Position CV',
+            'jack-cv2out': 'LFO Modulation CV'
+        },
+        creator: 'Tod Kurt (@todbot)',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/30_cirpy_wavetable'
+    }
+    {
+        id: 'backyard_rain',
+        name: 'Backyard Rain',
+        num: '42',
+        desc: 'Nature soundscape audio. A cozy rain ambience mix for background listening. You control the intensity. This card plays rain ambience which was recorded in my backyard.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Brian Dorsey',
+        license: '',
+        repository: 'https://codeberg.org/briandorsey/mtmws_cards'
+    }
+    {
+        id: 'turing_machine',
+        name: 'Turing Machine',
+        num: '03',
+        desc: 'Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-pulse1in': 'External Clock 1',
+            'jack-pulse2in': 'External Clock 2',
+            'jack-cv1in': 'Diviply CV',
+            'jack-cv2in': 'Pitch Offset CV',
+            'jack-audio1in': 'Reset',
+            'jack-audio2in': 'Preset Select CV',
+            'jack-pulse1out': 'Channel 1 Pulse',
+            'jack-pulse2out': 'Channel 2 Pulse',
+            'jack-cv1out': 'Channel 1 Quantized CV',
+            'jack-cv2out': 'Channel 2 Quantized CV',
+            'jack-audio1out': 'Channel 1 DAC CV',
+            'jack-audio2out': 'Channel 2 DAC CV'
+        },
+        creator: 'Tom Whitwell',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/03_Turing_Machine'
+    }
+    {
+        id: 'byo_benjolin',
+        name: 'BYO Benjolin',
+        num: '04',
+        desc: 'Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-pulse1in': 'FWD Clk In',
+            'jack-pulse2in': 'Back Clk In',
+            'jack-audio1in': 'Data Input',
+            'jack-audio2in': 'Lock CV',
+            'jack-cv1in': 'Offset CV',
+            'jack-cv2in': 'VCA CV',
+            'jack-audio1out': 'Raw Out 1',
+            'jack-audio2out': 'Raw Out 2',
+            'jack-cv1out': 'Quant Out 1',
+            'jack-cv2out': 'Quant Out 2',
+            'jack-pulse1out': '1-Bit Out 1',
+            'jack-pulse2out': '1-Bit Out 2'
+        },
+        creator: 'Dune Desormeaux',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/04_BYO_Benjolin'
+    }
+    {
+        id: 'clockwork',
+        name: 'Clockwork',
+        num: '26',
+        desc: '6-channel polyrhythmic clock, gate, and LFO/envelope generator inspired by Pamela\'s Workout.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Vincent Maurer',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/26_clockwork'
+    }
+    {
+        id: 'castle_process',
+        name: 'Castle Process',
+        num: '43',
+        desc: 'Fort Processor-inspired harsh noise processor with chopped external audio and a bass pulse voice',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Adrian Vos',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/43_Castle_Process'
+    }
+    {
+        id: 'west_coast_lpg',
+        name: 'West Coast LPG',
+        num: '81',
+        desc: 'Dual vactrol-emulating low-pass gate (combined VCA + low-pass filter) with fast-attack/slow-decay \'plong\', self-pinging percussion, and per-channel VCA/VCF/LPG modes.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Jason Moore',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/81_West_Coast_LPG'
+    }
+    {
+        id: 'origami',
+        name: 'Origami',
+        num: '83',
+        desc: 'Dual oversampled wavefolder — triangle / sine / hard-clip folding with bias (even-harmonic) control and CV over fold depth, band-limited via 4x oversampling.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Jason Moore',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/83_Origami'
+    }
+    {
+        id: 'cosmik_c1zzl3',
+        name: 'Cosmik C1Zzl3',
+        num: '84',
+        desc: 'Stable phase-distortion synthesiser and Turing machine firmware with Web MIDI envelope readback, PD, detune, eight waveform families, hosted CZ patch import, USB MIDI device/host operation, and optional Turing MIDI output.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Music Thing Modular',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/84_CosmikC1zzl3'
+    }
+    {
+        id: 'fr330hfr33',
+        name: 'Fr330Hfr33',
+        num: '87',
+        desc: 'Hardware-tested acid bass synthesiser with selectable saw or square oscillator, switchable 18 or 24 dB diode-style filtering, accent and glide, distortion, USB MIDI device/host operation, and a persistent editable sequencer.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Music Thing Modular',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/87_fr330hfr33'
+    }
+    {
+        id: 'pantograph',
+        name: 'Pantograph',
+        num: '90',
+        desc: 'Trace and record CV — record knob movements, loop them at bipolar speed',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'X Mod',
+            'jack-cv2in': 'Y Mod',
+            'jack-pulse1in': 'Trigger',
+            'jack-pulse2in': '(unused)',
+            'jack-audio1in': '(unused)',
+            'jack-audio2in': '(unused)',
+            'jack-cv1out': 'Trace X CV',
+            'jack-cv2out': 'Trace Y CV',
+            'jack-pulse1out': 'End of cycle',
+            'jack-pulse2out': 'Contour Gate',
+            'jack-audio1out': '(unused)',
+            'jack-audio2out': '(unused)'
+        },
+        creator: 'Kenny Shen',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/90_Pantograph'
+    }
+    {
+        id: 'chorgan',
+        name: 'Chorgan',
+        num: '91',
+        desc: 'Chorgan — 6-voice chord synthesizer with morphing timbre, chord extension presets, and built-in chord sequencer. Two modes: normal (detune/chorus) and slew (portamento chord changes). Inspired by the Music Thing Modular Chord Organ.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'Root Pitch CV',
+            'jack-cv2in': 'Timbre Offset CV',
+            'jack-audio1in': 'Slew Speed CV',
+            'jack-audio2in': 'Chord Inversion CV',
+            'jack-pulse1in': 'Preset Advance',
+            'jack-pulse2in': 'Chord Recall Clock',
+            'jack-audio1out': 'Six-Voice Mix',
+            'jack-audio2out': 'Phase-Offset Mix',
+            'jack-pulse1out': 'Sub-Octave Square',
+            'jack-pulse2out': 'Chord Event PWM',
+            'jack-cv1out': 'Voiced Pitch CV',
+            'jack-cv2out': 'Chord Event Ramp'
+        },
+        creator: 'Andy Jenkinson (uglifruit)',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/91_chorgan'
+    }
+    {
+        id: 'turing_matrix',
+        name: 'Turing Matrix',
+        num: '93',
+        desc: 'Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        creator: 'Music Thing Modular',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/93_Turing_Matrix'
+    }
+    {
+        id: 'offair2',
+        name: 'OffAir',
+        num: '95',
+        desc: 'OffAir — AM/Shortwave/Longwave radio simulator. Tune between two Stations and interference with authentic heterodyne whistles, SSB pitch-shift detuning, AM envelope detection, swelling per-band static, and triggerable Insta-ference one-shots. Baked recordings or live audio inputs become the Stations.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Station 1 In',
+            'jack-audio2in': 'Station 2 In',
+            'jack-cv1in': 'Tuner',
+            'jack-cv2in': 'Noise',
+            'jack-pulse1in': 'Shuffle Signals',
+            'jack-pulse2in': 'Insta-ference',
+            'jack-cv1out': 'Signal Strength',
+            'jack-cv2out': 'Station 1 CV Offset',
+            'jack-audio1out': 'Output',
+            'jack-audio2out': 'Just Noise',
+            'jack-pulse1out': 'Station 1 Tuned Gate',
+            'jack-pulse2out': 'Station 2 Tuned Gate'
+        },
+        creator: 'Andy Jenkinson (uglifruit)',
+        license: 'CC BY-SA 4.0',
+        repository: 'https://github.com/uglifruit/Workshop_Computer'
+    }
+    {
+        id: 'cathode',
+        name: 'Cathode Ray',
+        num: '96',
+        desc: 'Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Scope Input',
+            'jack-audio2in': 'Trigger (FourTrig)',
+            'jack-cv1in': 'Draw X',
+            'jack-cv2in': 'Draw Y',
+            'jack-pulse1in': 'Trigger 1',
+            'jack-pulse2in': 'Trigger 2',
+            'jack-pulse1out': 'Video DAC bit 0',
+            'jack-pulse2out': 'Video DAC bit 1',
+            'jack-cv1out': 'Alt-boot CV',
+            'jack-cv2out': 'Alt-boot Trigger'
+        },
+        creator: 'Andy Jenkinson (uglifruit)',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/96_cathode'
     }
 ];
 

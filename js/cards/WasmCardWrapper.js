@@ -61,6 +61,17 @@ const WASM_CARD_MAP = {
     'tesserae':       57,
     'duo_midi':       58,
     'toolbox':        59,
+    'clockwork':      60,
+    'castle_process':  61,
+    'west_coast_lpg': 62,
+    'origami':        63,
+    'cosmik_c1zzl3':  64,
+    'fr330hfr33':     65,
+    'pantograph':     66,
+    'chorgan':        67,
+    'turing_matrix':  68,
+    'offair2':        69,
+    'cathode':        70,
 };
 
 class WasmCardWrapper extends ComputerCard {
