@@ -1427,6 +1427,7 @@ body.performance-mode .cable-svg path {
 }
 
 .mc-label {
+    font-family: "Arial Narrow", "Helvetica Condensed", sans-serif;
     color: #ddd;
     text-shadow: none;
     font-weight: bold;
