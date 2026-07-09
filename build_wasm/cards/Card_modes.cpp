@@ -3147,6 +3147,8 @@ int main() {
 // ── MIDI Callback Implementations ───────────────────────────────────────────
 
 extern "C" {
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep,
                        uint8_t num_cables_rx, uint16_t num_cables_tx) {
   (void)in_ep;
@@ -3156,12 +3158,18 @@ void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep,
   if (midi_dev_addr == 0)
     midi_dev_addr = dev_addr;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance) {
   (void)instance;
   if (dev_addr == midi_dev_addr)
     midi_dev_addr = 0;
 }
+#endif
+
 
 void handle_midi_message(uint8_t *packet, int size) {
   if (size < 3)
@@ -3411,12 +3419,13 @@ void handle_midi_message(uint8_t *packet, int size) {
   }
 }
 
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets) {
   if (midi_dev_addr != dev_addr || num_packets == 0)
     return;
   uint8_t cable_num;
   uint8_t buffer[48];
-#ifndef __EMSCRIPTEN__  // WASM: skip blocking USB/FIFO spin loop
   while (true) {
     int32_t bytesRead =
         tuh_midi_stream_read(dev_addr, &cable_num, buffer, sizeof(buffer));
@@ -3426,22 +3435,39 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets) {
       parse_host_midi_byte(buffer[i]);
     }
   }
-#endif  // __EMSCRIPTEN__
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_tx_cb(uint8_t dev_addr) { (void)dev_addr; }
+#endif
+
 
 // USB Device callbacks to automatically reset web_ui_connected on disconnect
-void tud_mount_cb(void) {}
 
+#ifndef __EMSCRIPTEN__
+void tud_mount_cb(void) {}
+#endif
+
+
+
+#ifndef __EMSCRIPTEN__
 void tud_umount_cb(void) {
   web_ui_connected = false;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tud_suspend_cb(bool remote_wakeup_en) {
   (void)remote_wakeup_en;
   web_ui_connected = false;
 }
+#endif
+
 }
 
 

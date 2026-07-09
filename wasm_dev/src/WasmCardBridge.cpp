@@ -340,6 +340,56 @@ extern "C" {
     void set_core1_thread_toolbox(bool is_core1);
     void run_card_toolbox();
 }
+extern "C" {
+    void set_thread_globals_clockwork(CardGlobals* inst);
+    void set_core1_thread_clockwork(bool is_core1);
+    void run_card_clockwork();
+}
+extern "C" {
+    void set_thread_globals_castle_process(CardGlobals* inst);
+    void set_core1_thread_castle_process(bool is_core1);
+    void run_card_castle_process();
+}
+extern "C" {
+    void set_thread_globals_west_coast_lpg(CardGlobals* inst);
+    void set_core1_thread_west_coast_lpg(bool is_core1);
+    void run_card_west_coast_lpg();
+}
+extern "C" {
+    void set_thread_globals_origami(CardGlobals* inst);
+    void set_core1_thread_origami(bool is_core1);
+    void run_card_origami();
+}
+extern "C" {
+    void set_thread_globals_cosmik_c1zzl3(CardGlobals* inst);
+    void set_core1_thread_cosmik_c1zzl3(bool is_core1);
+    void run_card_cosmik_c1zzl3();
+}
+extern "C" {
+    void set_thread_globals_fr330hfr33(CardGlobals* inst);
+    void set_core1_thread_fr330hfr33(bool is_core1);
+    void run_card_fr330hfr33();
+}
+extern "C" {
+    void set_thread_globals_pantograph(CardGlobals* inst);
+    void set_core1_thread_pantograph(bool is_core1);
+    void run_card_pantograph();
+}
+extern "C" {
+    void set_thread_globals_chorgan(CardGlobals* inst);
+    void set_core1_thread_chorgan(bool is_core1);
+    void run_card_chorgan();
+}
+extern "C" {
+    void set_thread_globals_turing_matrix(CardGlobals* inst);
+    void set_core1_thread_turing_matrix(bool is_core1);
+    void run_card_turing_matrix();
+}
+extern "C" {
+    void set_thread_globals_offair2(CardGlobals* inst);
+    void set_core1_thread_offair2(bool is_core1);
+    void run_card_offair2();
+}
 
 struct WasmCardFunctions {
     void (*set_thread_globals)(CardGlobals*);
@@ -408,6 +458,16 @@ WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_tesserae, set_core1_thread_tesserae, run_card_tesserae },
     { set_thread_globals_duo_midi, set_core1_thread_duo_midi, run_card_duo_midi },
     { set_thread_globals_toolbox, set_core1_thread_toolbox, run_card_toolbox },
+    { set_thread_globals_clockwork, set_core1_thread_clockwork, run_card_clockwork },
+    { set_thread_globals_castle_process, set_core1_thread_castle_process, run_card_castle_process },
+    { set_thread_globals_west_coast_lpg, set_core1_thread_west_coast_lpg, run_card_west_coast_lpg },
+    { set_thread_globals_origami, set_core1_thread_origami, run_card_origami },
+    { set_thread_globals_cosmik_c1zzl3, set_core1_thread_cosmik_c1zzl3, run_card_cosmik_c1zzl3 },
+    { set_thread_globals_fr330hfr33, set_core1_thread_fr330hfr33, run_card_fr330hfr33 },
+    { set_thread_globals_pantograph, set_core1_thread_pantograph, run_card_pantograph },
+    { set_thread_globals_chorgan, set_core1_thread_chorgan, run_card_chorgan },
+    { set_thread_globals_turing_matrix, set_core1_thread_turing_matrix, run_card_turing_matrix },
+    { set_thread_globals_offair2, set_core1_thread_offair2, run_card_offair2 },
 };
 
 extern "C" {
@@ -430,7 +490,7 @@ EMSCRIPTEN_KEEPALIVE void init_card(int card_idx) {
     
     g_active_wasm_card_idx = card_idx;
     
-    if (card_idx < 0 || card_idx >= 60) return;
+    if (card_idx < 0 || card_idx >= 70) return;
     
     // Sync new card thread local globals
     g_card_functions[card_idx].set_thread_globals(&g_wasm_card_globals);

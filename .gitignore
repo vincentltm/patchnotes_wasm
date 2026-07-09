@@ -1,1 +1,7 @@
 .DS_Store
+build_wasm/
+wasm_dev/build_wasm/
+wasm_dev/test_prep.i
+**/*.pyc
+**/__pycache__/
+

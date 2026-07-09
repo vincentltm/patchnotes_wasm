@@ -640,12 +640,9 @@ void save_config_to_flash()
 {
 	runADCMode = RUN_ADC_MODE_REQUEST_ADC_STOP;
 
-#ifdef __EMSCRIPTEN__
-	runADCMode = RUN_ADC_MODE_ADC_STOPPED;
-#else
-	while (runADCMode != RUN_ADC_MODE_ADC_STOPPED) {
-		tight_loop_contents();
-	}
+	// wait for audio core to detect runADCMode flag and stop
+	#ifndef __EMSCRIPTEN__
+	while (runADCMode != RUN_ADC_MODE_ADC_STOPPED) {}
 #endif
 
 	// shut down the other core
@@ -785,6 +782,8 @@ void midi_device_task()
 
 ////////////////////////////////////////
 // MIDI host callbacks
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t num_cables_rx, uint16_t num_cables_tx)
 {
 	(void)in_ep; (void)out_ep; (void)num_cables_rx; // avoid unused variable warnings
@@ -797,8 +796,12 @@ void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t 
 		midiDeviceOutputCable = num_cables_tx - 1; // sets to -1 if device has no midi
 	}
 }
+#endif
 
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
 {
 	(void)instance;
@@ -810,8 +813,12 @@ void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
 		midiDeviceOutputCable = -1;
 	}
 }
+#endif
+
 
 // Handle host-mode incoming midi message
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 {
 	if (midiDeviceAddress != dev_addr)
@@ -822,7 +829,6 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 	
 	uint8_t cable_num;
 	static uint8_t buffer[512];
-#ifndef __EMSCRIPTEN__  // WASM: skip blocking USB/FIFO spin loop
 	while (1)
 	{
 		int32_t bytesToProcess = tuh_midi_stream_read(dev_addr, &cable_num, buffer, sizeof(buffer));
@@ -853,13 +859,18 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 		}
 
 	}
-#endif  // __EMSCRIPTEN__
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_tx_cb(uint8_t dev_addr)
 {
     (void)dev_addr;
 }
+#endif
+
 
 
 
@@ -1301,7 +1312,6 @@ void __not_in_flash_func(audio_worker)()
 #else
     while (1) {
         
-		tight_loop_contents();
 		// If ready to restart
 		if (runADCMode == RUN_ADC_MODE_REQUEST_ADC_RESTART)
 		{

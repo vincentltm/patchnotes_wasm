@@ -4742,6 +4742,8 @@ void core1_dsp_loop() {
 
 // MIDI Mount Callbacks
 extern "C" {
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep,
                        uint8_t num_cables_rx, uint16_t num_cables_tx) {
   (void)in_ep;
@@ -4750,12 +4752,20 @@ void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep,
   (void)num_cables_tx;
   (void)dev_addr;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance) {
   (void)instance;
   (void)dev_addr;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets) {
   while (num_packets--) {
     uint8_t packet[4];
@@ -4764,6 +4774,8 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets) {
     }
   }
 }
+#endif
+
 
 void handle_midi_message(uint8_t *packet, int size) {
   if (size > 0) {

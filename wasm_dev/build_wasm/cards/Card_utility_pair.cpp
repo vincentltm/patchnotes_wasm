@@ -3059,11 +3059,7 @@ int main()
 	save_config_to_flash();
 
 	
-#ifdef __EMSCRIPTEN__
-	ComputerCard *cc = nullptr;
-#else
 	ComputerCard *cc = nullptr; HeapCardGuard cc_guard(cc);
-#endif
 	if (utilityIndex[0] == 0 && utilityIndex[1] == 0) cc = new UtilityPair<attenuvert, attenuvert>;
 	if (utilityIndex[0] == 0 && utilityIndex[1] == 1) cc = new UtilityPair<attenuvert, bernoulli>;
 	if (utilityIndex[0] == 0 && utilityIndex[1] == 2) cc = new UtilityPair<attenuvert, bitcrush>;

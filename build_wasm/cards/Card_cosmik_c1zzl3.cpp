@@ -2304,6 +2304,8 @@ private:
 C1ZZL3 card;
 static volatile uint8_t hostMidiDeviceAddress = 0;
 
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_mount_cb(
     uint8_t dev_addr,
     uint8_t in_ep,
@@ -2319,7 +2321,11 @@ extern "C" void tuh_midi_mount_cb(
     if (hostMidiDeviceAddress == 0)
         hostMidiDeviceAddress = dev_addr;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
 {
     (void)instance;
@@ -2327,7 +2333,11 @@ extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
     if (dev_addr == hostMidiDeviceAddress)
         hostMidiDeviceAddress = 0;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 {
     if (dev_addr != hostMidiDeviceAddress || num_packets == 0)
@@ -2335,7 +2345,6 @@ extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 
     uint8_t cable = 0;
     uint8_t bytes[128];
-#ifndef __EMSCRIPTEN__  // WASM: skip blocking USB/FIFO spin loop
     while (true)
     {
         uint32_t count = tuh_midi_stream_read(dev_addr, &cable, bytes, sizeof(bytes));
@@ -2345,13 +2354,18 @@ extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
         for (uint32_t i = 0; i < count; ++i)
             card.ProcessUsbMidiByte(bytes[i]);
     }
-#endif  // __EMSCRIPTEN__
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_tx_cb(uint8_t dev_addr)
 {
     (void)dev_addr;
 }
+#endif
+
 
 void usbMidiWorker()
 {

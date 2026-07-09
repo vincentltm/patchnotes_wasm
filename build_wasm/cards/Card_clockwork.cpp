@@ -1680,6 +1680,15 @@ void ClockworksCard::render_leds_feedback(uint8_t mode, uint8_t val, int8_t sign
 }
 
 void __not_in_flash_func(ClockworksCard::ProcessSample)() {
+#ifndef __arm__
+    static uint32_t ui_counter = 0;
+    ui_counter++;
+    if (ui_counter >= 48) {
+        ui_counter = 0;
+        process_usb_midi_device();
+        tick_ui_once();
+    }
+#endif
     // Sync external period counters (one per ISR call at 48kHz)
     sync_sample_counter_++;
     samples_since_last_pulse_++;
@@ -4531,14 +4540,24 @@ ClockworksCard card;
 extern "C" {
 bool tuh_midi_packet_read(uint8_t dev_addr, uint8_t packet[4]);
 
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t num_cables_rx, uint16_t num_cables_tx) {
     (void)dev_addr; (void)in_ep; (void)out_ep; (void)num_cables_rx; (void)num_cables_tx;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance) {
     (void)dev_addr; (void)instance;
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets) {
     (void)num_packets;
     uint8_t packet[4];
@@ -4546,10 +4565,16 @@ void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets) {
         card.process_incoming_midi_packet(packet);
     }
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 void tuh_midi_tx_cb(uint8_t dev_addr) {
     (void)dev_addr;
 }
+#endif
+
 }
 
 // Core 1 Entry Point — audio engine only, runs entirely from RAM

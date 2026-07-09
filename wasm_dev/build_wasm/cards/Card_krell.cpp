@@ -1404,7 +1404,6 @@ public:
         
         // Override print function
         lua_register(L, "print", lua_print);
-        lua_register(L, "print_serial", lua_print);
         
     // Add time function
     lua_register(L, "time", lua_time);

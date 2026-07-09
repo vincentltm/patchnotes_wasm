@@ -28,7 +28,7 @@ out_map_js = {
     "pulseout2": "jack-pulse2out", "pulseoutput2": "jack-pulse2out", "gateout2": "jack-pulse2out", "gateoutput2": "jack-pulse2out", "pulse2": "jack-pulse2out"
 }
 
-def parse_yaml(path):
+def parse_yaml(yaml_path):
     result = {
         "name": "",
         "desc": "",
@@ -38,39 +38,53 @@ def parse_yaml(path):
         "inputs": {},
         "outputs": {}
     }
-    if not os.path.exists(path):
+    
+    if not yaml_path or not os.path.exists(yaml_path):
         return result
         
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read()
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
         
-    lines = content.splitlines()
     current_section = None
     current_subsection = None
     current_item = None
     
-    is_multiline_desc = False
-    desc_lines = []
-    desc_indent = None
+    multiline_target = None
+    multiline_lines = []
+    multiline_indent = None
     
     for line in lines:
         line_rstrip = line.rstrip()
         stripped = line_rstrip.strip()
         
-        if is_multiline_desc:
+        if multiline_target is not None:
             if not stripped:
-                desc_lines.append("")
+                multiline_lines.append("")
                 continue
             indent = len(line_rstrip) - len(line_rstrip.lstrip())
-            if indent > 0:
-                if desc_indent is None:
-                    desc_indent = indent
-                content_line = line_rstrip[desc_indent:] if len(line_rstrip) >= desc_indent else line_rstrip.lstrip()
-                desc_lines.append(content_line)
+            if indent > 0 and (multiline_indent is None or indent >= multiline_indent):
+                if multiline_indent is None:
+                    multiline_indent = indent
+                content_line = line_rstrip[multiline_indent:] if len(line_rstrip) >= multiline_indent else line_rstrip.lstrip()
+                multiline_lines.append(content_line)
                 continue
             else:
-                is_multiline_desc = False
-                result["desc"] = " ".join(desc_lines).strip()
+                # End multiline
+                val = " ".join(multiline_lines).strip()
+                if multiline_target[0] == "desc":
+                    result["desc"] = val
+                elif multiline_target[0] == "port":
+                    _, sub, key = multiline_target
+                    current_item[key] = val
+                    # Map item if we have id and name/label
+                    iid = current_item.get("id", "").lower().replace("_", "").replace(" ", "")
+                    name = current_item.get("name") or current_item.get("label") or ""
+                    if iid and name:
+                        if sub == "inputs" and iid in in_map_js:
+                            result["inputs"][in_map_js[iid]] = name
+                        elif sub == "outputs" and iid in out_map_js:
+                            result["outputs"][out_map_js[iid]] = name
+                multiline_target = None
         
         if not stripped or stripped.startswith("#"):
             continue
@@ -83,10 +97,11 @@ def parse_yaml(path):
             if k == "name":
                 result["name"] = v
             elif k in ["description", "summary"]:
-                if v == "|" or v == ">" or v == ">-" or v == "|-":
-                    is_multiline_desc = True
-                    desc_lines = []
-                    desc_indent = None
+                v_strip = v.strip() if v else ""
+                if v_strip in ["|", ">", "|-", ">-"]:
+                    multiline_target = ("desc",)
+                    multiline_lines = []
+                    multiline_indent = None
                 else:
                     result["desc"] = v
             elif k == "creator":
@@ -109,34 +124,59 @@ def parse_yaml(path):
                 current_subsection = None
             continue
             
-        if indent == 4 and stripped.startswith("-"):
-            item_content = stripped[1:].strip()
-            if current_subsection in ["inputs", "outputs"]:
-                current_item = {}
-                if ":" in item_content:
-                    k, v = item_content.split(":", 1)
-                    current_item[k.strip().lower()] = v.strip().strip("'\"")
+        if indent == 4:
+            if stripped.startswith("-"):
+                item_content = stripped[1:].strip()
+                if current_subsection in ["inputs", "outputs"]:
+                    current_item = {}
+                    if ":" in item_content:
+                        k, v = item_content.split(":", 1)
+                        current_item[k.strip().lower()] = v.strip().strip("'\"")
+            elif ":" in stripped and current_subsection in ["inputs", "outputs"]:
+                k, v = stripped.split(":", 1)
+                k = k.strip().lower()
+                current_item = {"id": k}
+                if v.strip():
+                    current_item["name"] = v.strip().strip("'\"")
             continue
             
         if indent >= 6 and ":" in stripped and current_item is not None:
             k, v = stripped.split(":", 1)
             k = k.strip().lower()
             v = v.strip().strip("'\"")
-            current_item[k] = v
+            v_strip = v.strip() if v else ""
             
-            # Map item
-            iid = current_item.get("id", "").lower().replace("_", "").replace(" ", "")
-            name = current_item.get("name", "")
-            if iid and name:
-                if current_subsection == "inputs" and iid in in_map_js:
-                    result["inputs"][in_map_js[iid]] = name
-                elif current_subsection == "outputs" and iid in out_map_js:
-                    result["outputs"][out_map_js[iid]] = name
+            if v_strip in ["|", ">", "|-", ">-"]:
+                multiline_target = ("port", current_subsection, k)
+                multiline_lines = []
+                multiline_indent = None
+            else:
+                current_item[k] = v
+                # Map item
+                iid = current_item.get("id", "").lower().replace("_", "").replace(" ", "")
+                name = current_item.get("name") or current_item.get("label") or ""
+                if iid and name:
+                    if current_subsection == "inputs" and iid in in_map_js:
+                        result["inputs"][in_map_js[iid]] = name
+                    elif current_subsection == "outputs" and iid in out_map_js:
+                        result["outputs"][out_map_js[iid]] = name
             continue
             
-    if is_multiline_desc:
-        result["desc"] = " ".join(desc_lines).strip()
-        
+    if multiline_target is not None:
+        val = " ".join(multiline_lines).strip()
+        if multiline_target[0] == "desc":
+            result["desc"] = val
+        elif multiline_target[0] == "port":
+            _, sub, key = multiline_target
+            current_item[key] = val
+            iid = current_item.get("id", "").lower().replace("_", "").replace(" ", "")
+            name = current_item.get("name") or current_item.get("label") or ""
+            if iid and name:
+                if sub == "inputs" and iid in in_map_js:
+                    result["inputs"][in_map_js[iid]] = name
+                elif sub == "outputs" and iid in out_map_js:
+                    result["outputs"][out_map_js[iid]] = name
+                    
     return result
 
 def main():
@@ -181,7 +221,7 @@ def main():
                     found = False
                     
                     # 1. search releases/
-                    releases_dir = "/Users/vmaurer/Music/Workshop_Computer/releases"
+                    releases_dir = "/Users/vmaurer/Music/Workshop_VCV_Dev/Workshop_Computer_VCV/deps/Workshop_Computer/releases"
                     for folder in os.listdir(releases_dir):
                         if folder.startswith(num + "_"):
                             folder_name = folder
@@ -215,11 +255,33 @@ def main():
                         if "chris johnson" in creator_lower or "tom whitwell" in creator_lower or "music thing" in creator_lower:
                             lic = "MIT"
                             
+                    # Build labels dictionary
+                    labels_lines = []
+                    for k, v in yaml_data["inputs"].items():
+                        escaped_v = v.replace("'", "\\'")
+                        labels_lines.append(f"            '{k}': '{escaped_v}'")
+                    for k, v in yaml_data["outputs"].items():
+                        escaped_v = v.replace("'", "\\'")
+                        labels_lines.append(f"            '{k}': '{escaped_v}'")
+                        
+                    labels_str = "{\n" + ",\n".join(labels_lines) + "\n        }" if labels_lines else "{}"
+
                     cleaned_lines = []
                     closing_line = card_lines[-1]
                     
+                    in_labels = False
                     for l in card_lines[:-1]:
                         if re.search(r"\b(creator|license|repository):\s*['\"]", l):
+                            continue
+                        if "labels:" in l:
+                            if "{" in l and "}" in l: # single-line labels
+                                continue
+                            else:
+                                in_labels = True
+                                continue
+                        if in_labels:
+                            if "}" in l:
+                                in_labels = False
                             continue
                         cleaned_lines.append(l)
                         
@@ -234,7 +296,7 @@ def main():
                             
                     escaped_creator = creator.replace("'", "\\'")
                     indent = "        "
-                    new_fields = f"{indent}creator: '{escaped_creator}',\n{indent}license: '{lic}',\n{indent}repository: '{repo}'\n"
+                    new_fields = f"{indent}labels: {labels_str},\n{indent}creator: '{escaped_creator}',\n{indent}license: '{lic}',\n{indent}repository: '{repo}'\n"
                     cleaned_lines.append(new_fields)
                     cleaned_lines.append(closing_line)
                     
@@ -256,7 +318,7 @@ def main():
                     found = False
                     
                     # 1. search releases/
-                    releases_dir = "/Users/vmaurer/Music/Workshop_Computer/releases"
+                    releases_dir = "/Users/vmaurer/Music/Workshop_VCV_Dev/Workshop_Computer_VCV/deps/Workshop_Computer/releases"
                     for folder in os.listdir(releases_dir):
                         if folder.startswith(card["num"] + "_"):
                             folder_name = folder

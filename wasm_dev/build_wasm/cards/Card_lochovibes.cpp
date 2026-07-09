@@ -161,13 +161,6 @@ public:
     {
         samplesSincePulse++;
         
-        static int print_cnt = 0;
-        if (g_audio_in[0] > 0.1 && print_cnt < 20) {
-            print_cnt++;
-            printf("[Wasm Debug] LoCho Vibes LOUD: AudioIn1()=%d, AudioIn2()=%d, g_input_connected[0]=%d, g_input_connected[1]=%d, g_audio_in[0]=%f\n",
-                   AudioIn1(), AudioIn2(), (int)g_input_connected[0], (int)g_input_connected[1], g_audio_in[0]);
-        }
-
         // Mono input normalization.
 
         int32_t mono =

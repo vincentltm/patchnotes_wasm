@@ -6,11 +6,11 @@ VCV_WORKSPACE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..
 
 CARDS = [
     "simple_midi", "turing_machine", "byo_benjolin", "chord_blimey", "usb_audio_bridge",
-    "bumpers", "bytebeat", "divcom", "twists", "goldfish",
+    "bumpers", "bytebeat", "divcom", "goldfish",
     "am_coupler", "noisebox", "cvmod", "mlrws", "chord_organ",
     "reverb", "resonator", "sheep", "slowmod", "crafted_volts",
     "utility_pair", "siren", "eighties_bass", "cirpy_wavetable", "esp",
-    "vink", "drumdrum", "dual_quant", "freq_shift", "compulidean",
+    "vink", "drumdrum", "dual_quant", "freq_shift",
     "od", "knots", "blackbird", "backyard_rain", "birds",
     "bends", "rompler", "nzt", "modes", "flux",
     "grains", "glitter", "tapegrade", "fifths", "krell",
@@ -1337,6 +1337,43 @@ def _fix_library_blocking_whiles(content: str) -> str:
     return '\n'.join(result)
 
 
+def strip_usb_callbacks(content):
+    callbacks = [
+        "tud_mount_cb", "tud_umount_cb", "tud_suspend_cb", "tud_resume_cb",
+        "tuh_midi_tx_cb", "tuh_midi_rx_cb", "tuh_midi_mount_cb", "tuh_midi_umount_cb"
+    ]
+    for cb in callbacks:
+        # Search for void cb(...) {
+        pattern = r'void\s+' + cb + r'\s*\([^)]*\)\s*\{'
+        match = re.search(pattern, content)
+        if match:
+            start_idx = match.start()
+            
+            # Check if there is a preceding extern "C"
+            prefix = content[max(0, start_idx - 30):start_idx].strip()
+            if prefix.endswith('extern "C"'):
+                ext_idx = content.rfind('extern "C"', 0, start_idx)
+                if ext_idx != -1:
+                    start_idx = ext_idx
+                    
+            brace_idx = match.end() - 1
+            brace_count = 1
+            end_idx = -1
+            for i in range(brace_idx + 1, len(content)):
+                if content[i] == '{':
+                    brace_count += 1
+                elif content[i] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = i + 1
+                        break
+            if end_idx != -1:
+                block = content[start_idx:end_idx]
+                wrapped = f"\n#ifndef __EMSCRIPTEN__\n{block}\n#endif\n"
+                content = content[:start_idx] + wrapped + content[end_idx:]
+    return content
+
+
 def preprocess_cpp_file(src_path, dst_path, is_main_file=False):
     if "Card_usb_audio_bridge.cpp" in src_path:
         content = """#include "pico_mocks.h"
@@ -1358,7 +1395,8 @@ extern "C" {
         content = re.sub(r'thread_local\s+bool\s+is_core1_thread\s*(?:=\s*[^;]+)?;', '', content)
         content = re.sub(r'thread_local\s+ComputerCard\*\s+ComputerCard::thisptr\s*(?:=\s*[^;]+)?;', '', content)
         
-        pass
+        # Strip duplicate USB callbacks for Emscripten
+        content = strip_usb_callbacks(content)
 
     # Apply loop targeted preprocessing
     content = preprocess_main_loops(src_path, content)
@@ -1953,11 +1991,14 @@ def copy_web_editors():
             "usb_audio_bridge": "usb_audio",
             "cirpy_wavetable": "cirpy",
             "backyard_rain": "rain",
-            "computer_grids": "computer_grids"
+            "computer_grids": "computer_grids",
+            "cosmikc1zzl3": "cosmik_c1zzl3"
         }
         card_id = mapping.get(name, name)
         
         web_folder = os.path.join(entry_path, "web")
+        if not os.path.isdir(web_folder):
+            web_folder = os.path.join(entry_path, "editor")
         card_web_dest = os.path.join(web_dest, card_id)
         
         copied = False

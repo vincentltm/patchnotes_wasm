@@ -2120,20 +2120,30 @@ void controlWorker()
 
 } // namespace
 
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tud_mount_cb(void)
 {
     // TinyUSB's device callback is the authoritative indication that a DAW
     // connection has returned. Polling alone can miss short USB transitions.
     midi.connectionRestored();
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tud_umount_cb(void)
 {
     // Release held MIDI state at the USB event itself. The control worker
     // observes the serial change and latches its output gate low.
     midi.connectionLost();
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_mount_cb(
     uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep,
     uint8_t num_cables_rx, uint16_t num_cables_tx)
@@ -2146,7 +2156,11 @@ extern "C" void tuh_midi_mount_cb(
         hostMidiDeviceAddress = dev_addr;
     midi.connectionRestored();
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
 {
     (void)instance;
@@ -2154,7 +2168,11 @@ extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
         hostMidiDeviceAddress = 0;
     midi.connectionLost();
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 {
     if (dev_addr != hostMidiDeviceAddress || num_packets == 0)
@@ -2162,7 +2180,6 @@ extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 
     uint8_t cable = 0;
     uint8_t bytes[128];
-#ifndef __EMSCRIPTEN__  // WASM: skip blocking USB/FIFO spin loop
     while (true) {
         uint32_t count =
             tuh_midi_stream_read(dev_addr, &cable, bytes, sizeof(bytes));
@@ -2171,13 +2188,18 @@ extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
         for (uint32_t i = 0; i < count; ++i)
             midi.process(bytes[i]);
     }
-#endif  // __EMSCRIPTEN__
 }
+#endif
 
+
+
+#ifndef __EMSCRIPTEN__
 extern "C" void tuh_midi_tx_cb(uint8_t dev_addr)
 {
     (void)dev_addr;
 }
+#endif
+
 
 int main()
 {

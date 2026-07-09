@@ -5488,12 +5488,6 @@ void SynthCore_UpdateParams(SynthParams *params) {
 
 bool SynthCore_GetSample(int16_t *outL, int16_t *outR) {
   int count = (rbHead - rbTail + SYNTH_RING_BUF_SIZE) % SYNTH_RING_BUF_SIZE;
-#ifdef __EMSCRIPTEN__
-  if (count < 32 && g_wasm_core1_tick) {
-      g_wasm_core1_tick();
-      count = (rbHead - rbTail + SYNTH_RING_BUF_SIZE) % SYNTH_RING_BUF_SIZE;
-  }
-#endif
   if (count < 64) {
       g_synth_need_render.store(true);
       g_synth_cv.notify_one();
