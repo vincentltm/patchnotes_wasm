@@ -988,6 +988,37 @@ BlackbirdCrow crow;
 #endif"""
                     content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
 
+    # ── CLOCKWORK ──
+    elif filename == "Card_clockwork.cpp":
+        idx = content.find("void ClockworksCard::run_core0_ui_loop()")
+        if idx != -1:
+            while_idx = content.find("while (1)", idx)
+            if while_idx != -1:
+                brace_pos = content.find("{", while_idx)
+                if brace_pos != -1:
+                    brace_count = 1
+                    curr_pos = brace_pos + 1
+                    while brace_count > 0 and curr_pos < len(content):
+                        if content[curr_pos] == '{':
+                            brace_count += 1
+                        elif content[curr_pos] == '}':
+                            brace_count -= 1
+                        curr_pos += 1
+                    closing_brace_idx = curr_pos - 1
+                    loop_body = content[brace_pos+1 : closing_brace_idx]
+                    
+                    replacement = f"""#ifdef __EMSCRIPTEN__
+    g_wasm_background_tick = [this, last_tick_time, last_dirty_sync_ms, last_periodic_sync_ms]() mutable {{
+        {loop_body}
+    }};
+#else
+    while (1) {{
+        {loop_body}
+    }}
+#endif"""
+                    content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
+
+
         # Wrap while (!core1_is_paused) in save_global_settings and save_preset
         for func_name in ["save_global_settings", "save_preset"]:
             f_idx = content.find(func_name)
@@ -1919,11 +1950,11 @@ def generate_wasm_card_map():
     # Map from wasm internal name -> CardDefinitions.js id
     WASM_TO_JS_ID = {
         'simple_midi':    'midi',
-        'turing_machine': 'turing',
-        'byo_benjolin':   'benjolin',
+        'turing_machine': 'turing_machine',
+        'byo_benjolin':   'byo_benjolin',
         'usb_audio_bridge': 'usb_audio',
-        'cirpy_wavetable': 'cirpy',
-        'backyard_rain':  'rain',
+        'cirpy_wavetable': 'cirpy_wavetable',
+        'backyard_rain':  'backyard_rain',
     }
 
     lines = []
