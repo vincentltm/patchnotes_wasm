@@ -71,7 +71,6 @@ const WASM_CARD_MAP = {
     'chorgan':        67,
     'turing_matrix':  68,
     'offair2':        69,
-    'cathode':        70,
 };
 
 class WasmCardWrapper extends ComputerCard {

@@ -63,6 +63,8 @@ namespace Card_OffAir2 {
 // Source: main.cpp
 // ──────────────────────────────────────────────────────────────────────────────
 
+#define DEBUG_1 20
+#define DEBUG_2 21
 // offair — shortwave radio simulator, v1.0.0 (behavioural tuning model)
 //
 // Tune between two Stations the way you tune a shortwave radio. Instead of a literal
@@ -835,38 +837,9 @@ public:
 // RF PWM ISR — core 0
 // ---------------------------------------------------------------------------
 
-static void __not_in_flash_func(OnRFPWMWrap)()
-{
-    static int32_t amError = 0, fqError = 0;
-    int32_t amv = amValue, fqv = fqValue;
+static void __not_in_flash_func(OnRFPWMWrap)() {}
 
-    uint32_t amTruncated = (uint32_t)(amv - amError) & 0xFFFFF000u;
-    uint32_t fqTruncated = (uint32_t)(fqv - fqError) & 0xFFFFF000u;
-
-    amError += (int32_t)amTruncated - amv;
-    fqError += (int32_t)fqTruncated - fqv;
-
-    pwm_hw->slice[0].cc  = amTruncated >> 12;
-    pwm_hw->slice[0].top = fqTruncated >> 12;
-
-    pwm_hw->intr = 1;
-}
-
-static void SetupRFPWM()
-{
-    gpio_set_function(DEBUG_1, GPIO_FUNC_PWM);
-    pwm_config config = pwm_get_default_config();
-    pwm_config_set_wrap(&config, 220);
-    pwm_init(pwm_gpio_to_slice_num(DEBUG_1), &config, true);
-    pwm_set_gpio_level(DEBUG_1, 0);
-
-    uint slice_num = pwm_gpio_to_slice_num(DEBUG_1);
-    pwm_clear_irq(slice_num);
-    pwm_set_irq_enabled(slice_num, true);
-    irq_set_exclusive_handler(PWM_IRQ_WRAP, OnRFPWMWrap);
-    irq_set_priority(PWM_IRQ_WRAP, PICO_HIGHEST_IRQ_PRIORITY);
-    irq_set_enabled(PWM_IRQ_WRAP, true);
-}
+static void SetupRFPWM() {}
 
 // ---------------------------------------------------------------------------
 // main
@@ -876,25 +849,10 @@ static OffAir card;
 
 void core1_entry() { card.Run(); }
 
-int main()
-{
-    set_sys_clock_khz(144000, true);
-
-    card.Init();
-    card.StageLed(0);
-
-    multicore_launch_core1(core1_entry);
-    card.StageLed(1);
-
-    sleep_ms(500);
-    card.StageLed(2);
-
-    SetupRFPWM();
-    card.StageLed(3);
-
-    while (true) __wfi();
-
-    return 0;
+int main() {
+	card.Init();
+	card.Run();
+	return 0;
 }
 
 

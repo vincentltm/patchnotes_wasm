@@ -2388,9 +2388,7 @@ void usbMidiWorker()
 //{
 //    card.EnableNormalisationProbe();
 //    card.Run();
-//
-    return 0;
-}
+//}
 int main()
 {
 #if defined(C1ZZL3_OVERCLOCK_KHZ) && C1ZZL3_OVERCLOCK_KHZ
@@ -2398,6 +2396,8 @@ int main()
 #endif
     multicore_launch_core1(usbMidiWorker);
     card.Run();
+
+    return 0;
 }
 
 

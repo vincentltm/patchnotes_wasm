@@ -390,11 +390,6 @@ extern "C" {
     void set_core1_thread_offair2(bool is_core1);
     void run_card_offair2();
 }
-extern "C" {
-    void set_thread_globals_cathode(CardGlobals* inst);
-    void set_core1_thread_cathode(bool is_core1);
-    void run_card_cathode();
-}
 
 struct WasmCardFunctions {
     void (*set_thread_globals)(CardGlobals*);
@@ -473,7 +468,6 @@ WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_chorgan, set_core1_thread_chorgan, run_card_chorgan },
     { set_thread_globals_turing_matrix, set_core1_thread_turing_matrix, run_card_turing_matrix },
     { set_thread_globals_offair2, set_core1_thread_offair2, run_card_offair2 },
-    { set_thread_globals_cathode, set_core1_thread_cathode, run_card_cathode },
 };
 
 extern "C" {
@@ -496,7 +490,7 @@ EMSCRIPTEN_KEEPALIVE void init_card(int card_idx) {
     
     g_active_wasm_card_idx = card_idx;
     
-    if (card_idx < 0 || card_idx >= 60) return;
+    if (card_idx < 0 || card_idx >= 70) return;
     
     // Sync new card thread local globals
     g_card_functions[card_idx].set_thread_globals(&g_wasm_card_globals);

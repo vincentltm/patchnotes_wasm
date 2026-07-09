@@ -18,7 +18,7 @@ CARDS = [
     "stretchcore", "trace", "degenerator", "motorik", "wild_pebble",
     "talker", "computer_grids", "tesserae", "duo_midi", "toolbox",
     "clockwork", "castle_process", "west_coast_lpg", "origami", "cosmik_c1zzl3",
-    "fr330hfr33", "pantograph", "chorgan", "turing_matrix", "offair2", "cathode"
+    "fr330hfr33", "pantograph", "chorgan", "turing_matrix", "offair2"
 ]
 
 def preprocess_main_loops(src_path, content):

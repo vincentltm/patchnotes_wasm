@@ -517,6 +517,7 @@ inline int __not_in_flash_func(safe_abs)(int x) {
     return x < 0 ? -x : x;
 }
 
+#ifdef __arm__
 inline uint32_t __not_in_flash_func(safe_div_u32)(uint32_t dividend, uint32_t divisor) {
     // RP2040 SIO divider takes exactly 8 cycles to produce a result after
     // the divisor is written. hw_divider_u32_quotient_wait() burns those
@@ -525,12 +526,24 @@ inline uint32_t __not_in_flash_func(safe_div_u32)(uint32_t dividend, uint32_t di
     sio_hw->div_udivisor  = divisor;
     return hw_divider_u32_quotient_wait();
 }
+#else
+inline uint32_t safe_div_u32(uint32_t dividend, uint32_t divisor) {
+    if (divisor == 0) return 0;
+    return dividend / divisor;
+}
+#endif
 
+#ifdef __arm__
 inline uint32_t __not_in_flash_func(mul16_16)(uint32_t a, uint32_t b) {
     uint32_t res;
     asm ("mul %0, %1" : "=l" (res) : "l" (b), "0" (a) : "cc");
     return res;
 }
+#else
+inline uint32_t mul16_16(uint32_t a, uint32_t b) {
+    return (uint32_t)((a & 0xffff) * (b & 0xffff));
+}
+#endif
 
 inline uint32_t __not_in_flash_func(mul_u32_u32_high)(uint32_t a, uint32_t b) {
     uint32_t a_lo = a & 0xFFFF;
@@ -757,8 +770,8 @@ private:
     bool is_valid_settings(const SavedSettings& s);
 };
 
-void (*ComputerCard::audio_callback_ptr)(void*) = nullptr;
-void *ComputerCard::audio_callback_inst = nullptr;
+// void (*ComputerCard::audio_callback_ptr)(void*) = nullptr;
+// void *ComputerCard::audio_callback_inst = nullptr;
 
 void __not_in_flash_func(audio_callback_ram_wrapper)(void* inst) {
     static_cast<ClockworksCard*>(inst)->ClockworksCard::ProcessSample();
@@ -775,8 +788,8 @@ ClockworksCard::ClockworksCard() {
     EnableNormalisationProbe(); // Enable the hardware normalization probe to detect plugged in jacks
 
     // Set RAM-resident non-virtual audio callback
-    ComputerCard::audio_callback_inst = this;
-    ComputerCard::audio_callback_ptr = audio_callback_ram_wrapper;
+    // ComputerCard::audio_callback_inst = this;
+    // ComputerCard::audio_callback_ptr = audio_callback_ram_wrapper;
 
     for (int i = 0; i < 6; i++) {
         calculate_state_inverses(i, settings_.channels[i].wave_shape, settings_.channels[i].wave_param);
