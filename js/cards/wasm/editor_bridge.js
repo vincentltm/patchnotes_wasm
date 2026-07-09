@@ -54,8 +54,8 @@
             this.outputs = new Map();
             this.sysexEnabled = true;
 
-            const virtualInput = new MockMIDIInput('virtual-card-input', 'MTMComputer (Flux, DrumDrum, Twists, MLRws, Blackbird) MIDI Input');
-            const virtualOutput = new MockMIDIOutput('virtual-card-output', 'MTMComputer (Flux, DrumDrum, Twists, MLRws, Blackbird) MIDI Output');
+            const virtualInput = new MockMIDIInput('virtual-card-input', 'MTMComputer (Flux, DrumDrum, Twists, MLRws, Blackbird, Clockwork MIDI) Input');
+            const virtualOutput = new MockMIDIOutput('virtual-card-output', 'MTMComputer (Flux, DrumDrum, Twists, MLRws, Blackbird, Clockwork MIDI) Output');
 
             this.inputs.set(virtualInput.id, virtualInput);
             this.outputs.set(virtualOutput.id, virtualOutput);
