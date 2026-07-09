@@ -4720,8 +4720,19 @@ function updateAudioParams() {
 
     if (activeComputerCard) {
         const getNorm = (id) => {
-            const val = componentStates[id] ? parseFloat(componentStates[id].value) : 0;
-            return (val + 150) / 300;
+            const s = componentStates[id];
+            const val = s ? parseFloat(s.value) : 0;
+            let min = -150;
+            let max = 150;
+            if (id.includes('knob-small')) {
+                min = -135;
+                max = 135;
+            }
+            if (s && s.range) {
+                min = s.range[0];
+                max = s.range[1];
+            }
+            return (val - min) / (max - min);
         };
 
         const params = {

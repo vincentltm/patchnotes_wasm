@@ -25,7 +25,17 @@ function runClockLoop() {
         const getNorm = (id) => {
             const s = componentStates[id];
             const val = s ? parseFloat(s.value) : 0;
-            return (val + 150) / 300;
+            let min = -150;
+            let max = 150;
+            if (id.includes('knob-small')) {
+                min = -135;
+                max = 135;
+            }
+            if (s && s.range) {
+                min = s.range[0];
+                max = s.range[1];
+            }
+            return (val - min) / (max - min);
         };
 
         const params = {
