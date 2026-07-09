@@ -23,56 +23,8 @@ const CARD_LIBRARY = [
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/00_Simple_MIDI'
     },
-    {
-        id: 'turing',
-        name: 'Turing Machine',
-        num: '03',
-        desc: "Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs",
-        class: 'CardNoOp',
-        category: 'Sequencer',
-        labels: {
-            'jack-pulse1in': 'External Clock 1',
-            'jack-pulse2in': 'External Clock 2',
-            'jack-cv1in': 'Diviply CV',
-            'jack-cv2in': 'Pitch Offset CV',
-            'jack-audio1in': 'Reset',
-            'jack-audio2in': 'Preset Select CV',
-            'jack-pulse1out': 'Channel 1 Pulse',
-            'jack-pulse2out': 'Channel 2 Pulse',
-            'jack-cv1out': 'Channel 1 Quantized CV',
-            'jack-cv2out': 'Channel 2 Quantized CV',
-            'jack-audio1out': 'Channel 1 DAC CV',
-            'jack-audio2out': 'Channel 2 DAC CV'
-        },
-        creator: 'Tom Whitwell',
-        license: 'MIT',
-        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/03_Turing_Machine'
-    },
-    {
-        id: 'benjolin',
-        name: 'BYO Benjolin',
-        num: '04',
-        desc: "Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer",
-        class: 'CardBenjolin',
-        category: 'Voice',
-        labels: {
-            'jack-pulse1in': 'FWD Clk In',
-            'jack-pulse2in': 'Back Clk In',
-            'jack-audio1in': 'Data Input',
-            'jack-audio2in': 'Lock CV',
-            'jack-cv1in': 'Offset CV',
-            'jack-cv2in': 'VCA CV',
-            'jack-audio1out': 'Raw Out 1',
-            'jack-audio2out': 'Raw Out 2',
-            'jack-cv1out': 'Quant Out 1',
-            'jack-cv2out': 'Quant Out 2',
-            'jack-pulse1out': '1-Bit Out 1',
-            'jack-pulse2out': '1-Bit Out 2'
-        },
-        creator: 'Dune Desormeaux',
-        license: '',
-        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/04_BYO_Benjolin'
-    },
+
+
     {
         id: 'chord_blimey',
         name: 'Chord Blimey!',
@@ -538,25 +490,7 @@ const CARD_LIBRARY = [
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/28_eighties_bass'
     },
-    {
-        id: 'cirpy',
-        name: 'Cirpy Wavetable',
-        num: '30',
-        desc: "Wavetable oscillator that using wavetables from Plaits, Braids, and Microwave,",
-        class: 'CardNoOp',
-        category: 'Voice',
-        labels: {
-            'jack-cv1in': 'Pitch CV',
-            'jack-cv2in': 'Wavetable Position Mod',
-            'jack-pulse1out': 'PWM Audio Out A',
-            'jack-pulse2out': 'PWM Audio Out B',
-            'jack-cv1out': 'Wavetable Position CV',
-            'jack-cv2out': 'LFO Modulation CV'
-        },
-        creator: 'Tod Kurt (@todbot)',
-        license: '',
-        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/30_cirpy_wavetable'
-    },
+
     {
         id: 'esp',
         name: 'ESP',
@@ -735,18 +669,7 @@ const CARD_LIBRARY = [
         license: 'GPLv3 or later',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/41_blackbird'
     },
-    {
-        id: 'rain',
-        name: 'Backyard Rain',
-        num: '42',
-        desc: "Nature soundscape audio. A cozy rain ambience mix for background listening. You control the intensity. This card plays rain ambience which was recorded in my backyard.",
-        class: 'CardNoOp',
-        category: 'Audio',
-        labels: {},
-        creator: 'Brian Dorsey',
-        license: '',
-        repository: 'https://codeberg.org/briandorsey/mtmws_cards'
-    },
+
     {
         id: 'birds',
         name: 'Birds',

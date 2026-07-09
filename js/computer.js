@@ -277,13 +277,13 @@ function updateCardVisuals(cardDef) {
     let bgUrl = 'images/card_blank.svg';
     let isPrebaked = false;
 
-    if (cardDef.id === 'turing') {
+    if (cardDef.id === 'turing' || cardDef.id === 'turing_machine') {
         bgUrl = 'images/card_turing.svg';
         isPrebaked = true;
     } else if (cardDef.id === 'reverb') {
         bgUrl = 'images/card_reverb.svg';
         isPrebaked = true;
-    } else if (cardDef.id === 'midi') {
+    } else if (cardDef.id === 'midi' || cardDef.id === 'simple_midi') {
         bgUrl = 'images/card_midi.svg';
         isPrebaked = true;
     }
