@@ -163,14 +163,22 @@ function renderComponentLabels() {
     // 1. Gather all label definitions
     let labelMap = {};
 
-    // A. From Active Computer Card
+    // A. From Active Computer Card or the label displayed on screen
+    let cardName = null;
     if (activeComputerCard) {
+        cardName = activeComputerCard.name;
+    } else {
+        const labelEl = document.getElementById('activeCardLabel');
+        if (labelEl) cardName = labelEl.textContent;
+    }
+
+    if (cardName && cardName !== 'No Card') {
         // Priority 1: Dynamic labels from the instance (e.g., Utility Pair)
-        if (activeComputerCard.labels) {
+        if (activeComputerCard && activeComputerCard.labels) {
             Object.assign(labelMap, activeComputerCard.labels);
         } else {
             // Priority 2: Static labels from library definition
-            const def = (window.AVAILABLE_CARDS || []).find(c => c.name === activeComputerCard.name);
+            const def = (window.AVAILABLE_CARDS || []).find(c => c.name === cardName);
             if (def && def.labels) {
                 Object.assign(labelMap, def.labels);
             }
@@ -196,6 +204,12 @@ function renderComponentLabels() {
         // Priority 2: Computer Card Label (if not overridden)
         if (!text && labelMap[id]) {
             text = labelMap[id];
+        }
+
+        // Also update the hover tooltip text
+        const tooltipEl = el.querySelector('.tooltip');
+        if (tooltipEl) {
+            tooltipEl.textContent = text || SYSTEM_CONFIG[id]?.label || id;
         }
 
         if (text && showComponentLabels) {
@@ -251,7 +265,7 @@ function createComponent(id, config) {
             const cablesToRemove = cableData.filter(c => c.start === jackId || c.end === jackId);
             if (cablesToRemove.length > 0) {
                 cablesToRemove.forEach(c => removeCable(c.start, c.end));
-                redrawCables(); saveState(); triggerHandlingNoise(); updateAudioGraph();
+                redrawCables(); saveState(); triggerHandlingNoise('plug_jack_out'); updateAudioGraph();
             }
         });
     }
@@ -309,18 +323,29 @@ function createComponent(id, config) {
 
     // --- Switches ---
     else if (config.type.startsWith('switch')) {
-        el.addEventListener('mousedown', startSwitchDrag);
-        el.addEventListener('touchstart', startSwitchDrag, { passive: false });
-        const initialVal = saved ? saved.value : (config.defValue || 0);
+        const initialVal = saved ? saved.value : (config.defValue ?? 1);
         const initialTouch = !!(saved && saved.isTouched);
-        setSwitchState(el, initialVal, initialTouch);
-        if (initialTouch) el.classList.add('is-touched');
-        if (initialTouch) el.classList.add('is-touched');
-        el.appendChild(document.createElement('div')).className = 'switch-handle';
 
-        // Fix for accidental double-click reset: Require Mod Key, or just make it strict?
-        // User Request: "make that not a problem? maybe only fast double click?"
-        // Solution: Standardize Reset to ALT + Double Click for switches to prevent conflict with rapid toggling
+        // All switches use VCV-style SVG icons
+        const img = document.createElement('img');
+        img.className = 'switch-vcv-img';
+        img.draggable = false;
+        el.appendChild(img);
+
+        if (id === 'switch-3way-computer') {
+            // VCV-style interaction for the computer Z switch:
+            // Upper half click  → toggle Up(0) / Middle(1) latch
+            // Lower half press  → momentary Down(2); hold ≥0.45s latches, quick release bounces to Middle
+            el.addEventListener('mousedown', startVcvSwitchPress);
+            el.addEventListener('touchstart', startVcvSwitchPress, { passive: false });
+        } else {
+            el.addEventListener('mousedown', startSwitchDrag);
+            el.addEventListener('touchstart', startSwitchDrag, { passive: false });
+        }
+
+        setSwitchState(el, initialVal, initialTouch);
+
+        // Alt/Ctrl + double-click to reset
         el.addEventListener('dblclick', (e) => {
             if (e.altKey || e.ctrlKey || e.metaKey) {
                 e.preventDefault();
@@ -414,7 +439,7 @@ function renderPedalboard() {
         sw.onclick = () => {
             const isActive = el.classList.toggle('active');
             componentStates[`pedal_${pedalId}_active`] = { value: isActive ? 1 : 0 };
-            updateAudioParams(); triggerHandlingNoise();
+            updateAudioParams(); triggerHandlingNoise('latch_switch');
         };
         if (componentStates[`pedal_${pedalId}_active`]?.value === 1) el.classList.add('active');
         el.appendChild(sw);
@@ -823,6 +848,7 @@ function handleGlobalMouseUp(e) {
         document.removeEventListener('touchmove', dragCable);
         document.removeEventListener('mouseup', handleGlobalMouseUp);
         document.removeEventListener('touchend', handleGlobalMouseUp);
+        document.removeEventListener('touchcancel', handleGlobalMouseUp);
         return;
     }
 
@@ -853,8 +879,13 @@ function handleGlobalMouseUp(e) {
                 const targetEl = document.getElementById(nearest);
                 targetEl.classList.add('active-target');
                 setTimeout(() => targetEl.classList.remove('active-target'), 200);
+                triggerHandlingNoise('plug_jack_in');
                 updateAudioGraph();
+            } else {
+                triggerHandlingNoise('plug_jack_out');
             }
+        } else {
+            triggerHandlingNoise('plug_jack_out');
         }
 
         disableGhostMode();
@@ -872,6 +903,7 @@ function handleGlobalMouseUp(e) {
         document.removeEventListener('touchmove', dragCable);
         document.removeEventListener('mouseup', handleGlobalMouseUp);
         document.removeEventListener('touchend', handleGlobalMouseUp);
+        document.removeEventListener('touchcancel', handleGlobalMouseUp);
     }
 }
 
@@ -891,11 +923,13 @@ function handleGlobalMouseDown(e) {
         isDraggingCable = false;
         isCablePickupMode = false;
         removeTempCableVisuals();
+        triggerHandlingNoise('plug_jack_out');
 
         document.removeEventListener('mousemove', dragCable);
         document.removeEventListener('touchmove', dragCable);
         document.removeEventListener('mouseup', handleGlobalMouseUp);
         document.removeEventListener('touchend', handleGlobalMouseUp);
+        document.removeEventListener('touchcancel', handleGlobalMouseUp);
     }
 }
 
@@ -928,11 +962,13 @@ function handleJackMouseDown(e) {
             currentCableStart = null;
             currentDraggedCable = null;
             removeTempCableVisuals();
+            triggerHandlingNoise('plug_jack_out');
 
             document.removeEventListener('mousemove', dragCable);
             document.removeEventListener('touchmove', dragCable);
             document.removeEventListener('mouseup', handleGlobalMouseUp);
             document.removeEventListener('touchend', handleGlobalMouseUp);
+            document.removeEventListener('touchcancel', handleGlobalMouseUp);
             return;
         }
 
@@ -947,6 +983,7 @@ function handleJackMouseDown(e) {
             const targetEl = document.getElementById(id);
             targetEl.classList.add('active-target');
             setTimeout(() => targetEl.classList.remove('active-target'), 200);
+            triggerHandlingNoise('plug_jack_in');
             updateAudioGraph();
         }
 
@@ -964,6 +1001,7 @@ function handleJackMouseDown(e) {
         document.removeEventListener('touchmove', dragCable);
         document.removeEventListener('mouseup', handleGlobalMouseUp);
         document.removeEventListener('touchend', handleGlobalMouseUp);
+        document.removeEventListener('touchcancel', handleGlobalMouseUp);
 
         return;
     }
@@ -976,7 +1014,7 @@ function handleJackMouseDown(e) {
         const cableToUnplug = stack[stack.length - 1];
 
         removeCable(cableToUnplug.start, cableToUnplug.end);
-        triggerHandlingNoise();
+        triggerHandlingNoise('plug_jack_out');
 
         const anchorJack = (cableToUnplug.start === id) ? cableToUnplug.end : cableToUnplug.start;
 
@@ -1022,6 +1060,7 @@ function handleJackMouseDown(e) {
         isDraggingCable = true;
         isCablePickupMode = false;
         currentCableStart = id;
+        triggerHandlingNoise('plug_jack_in');
 
         const pos = getEventPos(e);
         dragStartX = pos.x;
@@ -1053,6 +1092,7 @@ function handleJackMouseDown(e) {
     document.addEventListener('touchmove', dragCable, { passive: false });
     document.addEventListener('mouseup', handleGlobalMouseUp);
     document.addEventListener('touchend', handleGlobalMouseUp);
+    document.addEventListener('touchcancel', handleGlobalMouseUp);
 }
 
 function handleJackClick(e) {
@@ -1115,6 +1155,7 @@ function startCableDrag(e, s, end) {
     document.addEventListener('touchmove', dragCable, { passive: false });
     document.addEventListener('mouseup', handleGlobalMouseUp);
     document.addEventListener('touchend', handleGlobalMouseUp);
+    document.addEventListener('touchcancel', handleGlobalMouseUp);
 }
 
 function dragCable(e) {
@@ -1284,7 +1325,7 @@ function startKnobDrag(e) {
     isDraggingKnob = true;
     const el = e.currentTarget;
     el.classList.add('is-touched');
-    triggerHandlingNoise(false);
+    triggerHandlingNoise('rotate_knob', null, el.id);
 
     // NEW: Initialize the angle tracker for this specific touch
     const rect = el.getBoundingClientRect();
@@ -1363,6 +1404,13 @@ function dragKnob(e) {
 
         data.lastAngle = deg; // Update for next frame
 
+        // Accumulate distance for VCV click transients
+        data.accumulatedDistance = (data.accumulatedDistance || 0) + Math.abs(delta);
+        if (data.accumulatedDistance > 135) {
+            data.accumulatedDistance = 0;
+            triggerHandlingNoise('rotate_knob', null, el.id);
+        }
+
         // 4. Apply Delta to Current Value
         const state = componentStates[el.id];
         const currentVal = state ? state.value : 0;
@@ -1386,7 +1434,7 @@ function dragKnob(e) {
 
         // 6. Audio Feedback & Update
         if (Math.abs(newVal - lastScratchAngle) > 3) {
-            triggerHandlingNoise(true);
+            triggerHandlingNoise('rotate_knob_loop', null, el.id);
             lastScratchAngle = newVal;
         }
 
@@ -1468,9 +1516,17 @@ function handleKnobWheel(e) {
     newVal = Math.max(-150, Math.min(150, newVal));
 
     updateKnobAngle(el, newVal);
-    triggerHandlingNoise(false);
+    triggerHandlingNoise('rotate_knob', null, el.id);
 }
+// SVG paths for VCV-style switch icons
+const VCV_SWITCH_SRCS = [
+    'img/switch_up.svg',    // state 0 = Up
+    'img/switch_middle.svg',// state 1 = Middle
+    'img/switch_down.svg'   // state 2 = Down
+];
+
 function setSwitchState(el, state, isTouched = true) {
+    state = parseInt(state);
     el.setAttribute('data-state', state);
     const existing = componentStates[el.id] || {};
     componentStates[el.id] = { ...existing, type: el.dataset.type, value: state, isTouched: isTouched };
@@ -1479,15 +1535,95 @@ function setSwitchState(el, state, isTouched = true) {
     } else {
         el.classList.remove('is-touched');
     }
+    // Update SVG icon
+    const img = el.querySelector('.switch-vcv-img');
+    if (img) {
+        const is3way = el.dataset.type && el.dataset.type.includes('3way');
+        if (is3way) {
+            img.src = VCV_SWITCH_SRCS[Math.min(state, 2)];
+        } else {
+            // 2-way: state 0 = Up, state 1 = Down
+            img.src = state === 0 ? VCV_SWITCH_SRCS[0] : VCV_SWITCH_SRCS[2];
+        }
+    }
     updateAudioParams();
     updateFocusState();
 }
-function handleSwitchClick(e) { const el = e.currentTarget; const states = el.dataset.type.includes('3way') ? 3 : 2; setSwitchState(el, (parseInt(el.getAttribute('data-state') || 0) + 1) % states); el.classList.add('is-touched'); saveState(); }
+function handleSwitchClick(e) { const el = e.currentTarget; const states = el.dataset.type.includes('3way') ? 3 : 2; setSwitchState(el, (parseInt(el.getAttribute('data-state') || 0) + 1) % states); el.classList.add('is-touched'); triggerHandlingNoise('latch_switch'); saveState(); }
 function resetSwitch(el) {
-    const def = SYSTEM_CONFIG[el.id]?.defValue || 0;
+    // Computer switch defaults to Middle (1); others default to config defValue or 0
+    const def = el.id === 'switch-3way-computer' ? 1 : (SYSTEM_CONFIG[el.id]?.defValue ?? 0);
     setSwitchState(el, def, false);
     saveState();
 }
+
+// ── VCV-style computer Z switch ──────────────────────────────────────────────
+// Mirrors WorkshopToggleSwitch.onButton() from ComputerWidgets.hpp:
+// • Click upper half  → latch Up(0) / Middle(1) toggle
+// • Press lower half  → go to Down(2); release quickly → bounce back to Middle(1)
+//                       hold ≥ LATCH_SECONDS → stay Down(2) (latched)
+const VCV_SWITCH_LATCH_MS = 450;
+let vcvSwitchEl       = null;
+let vcvPressTime      = 0;
+let vcvDownLatched    = false;
+let vcvDownPressed    = false;
+
+function startVcvSwitchPress(e) {
+    if (typeof midiLearnMode !== 'undefined' && midiLearnMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    vcvSwitchEl = e.currentTarget;
+    const rect  = vcvSwitchEl.getBoundingClientRect();
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    const midY  = rect.top + rect.height / 2;
+    const isLower = clientY >= midY;
+    triggerHandlingNoise(isLower ? 'mom_switch_down' : 'latch_switch');
+
+    if (clientY < midY) {
+        // ── Upper half: toggle Up(0) / Middle(1) ──
+        const cur = parseInt(vcvSwitchEl.getAttribute('data-state') ?? 1);
+        setSwitchState(vcvSwitchEl, cur === 0 ? 1 : 0, true);
+        vcvDownPressed = false;
+        vcvDownLatched = false;
+        saveState();
+    } else {
+        // ── Lower half: momentary Down ──
+        if (vcvDownLatched) {
+            // Second click while latched → unlock back to Middle
+            setSwitchState(vcvSwitchEl, 1, true);
+            vcvDownLatched = false;
+            vcvDownPressed = false;
+            triggerHandlingNoise('mom_switch_snap');
+            saveState();
+        } else {
+            setSwitchState(vcvSwitchEl, 2, true);
+            vcvDownPressed = true;
+            vcvPressTime   = performance.now();
+
+            const onRelease = () => {
+                document.removeEventListener('mouseup',  onRelease);
+                document.removeEventListener('touchend', onRelease);
+                document.removeEventListener('touchcancel', onRelease);
+                if (!vcvDownPressed) return;
+                vcvDownPressed = false;
+                const held = performance.now() - vcvPressTime;
+                if (held >= VCV_SWITCH_LATCH_MS) {
+                    vcvDownLatched = true;          // hold → stay Down
+                } else {
+                    setSwitchState(vcvSwitchEl, 1, true); // quick tap → bounce to Middle
+                    vcvDownLatched = false;
+                    saveState();
+                }
+                triggerHandlingNoise('mom_switch_snap');
+            };
+            document.addEventListener('mouseup',  onRelease);
+            document.addEventListener('touchend', onRelease);
+            document.addEventListener('touchcancel', onRelease);
+        }
+    }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 function handleButtonClick(e) {
     const el = e.currentTarget;
     const val = parseInt(el.getAttribute('data-state') || 0) === 0 ? 1 : 0;
@@ -1498,6 +1634,7 @@ function handleButtonClick(e) {
     updateAudioParams();
     updateFocusState();
     saveState();
+    triggerHandlingNoise('press_button');
 }
 
 function createNoteElement(d) {
@@ -1542,29 +1679,42 @@ function stopDragNote() {
 function saveNotePositions() { noteData = Array.from(document.querySelectorAll('.note-element')).map(el => ({ id: el.id, text: el.textContent, x: el.style.left, y: el.style.top, color: el.style.color, backgroundColor: el.style.backgroundColor, border: el.style.border })); return noteData; }
 
 function startChassisDrag(e) {
-    if (e.button !== 0) return;
+    if (e.type === 'mousedown' && e.button !== 0) return;
     if (e.target.closest('.component') || e.target.tagName === 'path' || e.target.tagName === 'text' || e.target.classList.contains('note-element') || e.target.tagName === 'INPUT') return;
     e.preventDefault();
     isDraggingChassis = true;
-    const cx = e.clientX || e.touches[0].clientX;
-    const cy = e.clientY || e.touches[0].clientY;
+    const t = e.touches ? e.touches[0] : e;
+    const cx = t.clientX;
+    const cy = t.clientY;
     lastChassisPos = { x: cx, y: cy };
-    triggerHandlingNoise(false);
+
+    const rect = document.getElementById('synthContainer').getBoundingClientRect();
+    const relX = ((cx - rect.left) / rect.width) * 450;
+    const relY = ((cy - rect.top) / rect.height) * 380;
+
+    triggerHandlingNoise('tap', null, null, { x: relX, y: relY });
+
     document.addEventListener('mousemove', dragChassis);
     document.addEventListener('mouseup', stopChassisDrag);
     document.addEventListener('touchmove', dragChassis, { passive: false });
     document.addEventListener('touchend', stopChassisDrag);
+    document.addEventListener('touchcancel', stopChassisDrag);
 }
 function dragChassis(e) {
     if (!isDraggingChassis) return;
     e.preventDefault();
-    const cx = e.clientX || e.touches[0].clientX;
-    const cy = e.clientY || e.touches[0].clientY;
+    const t = e.touches ? e.touches[0] : e;
+    const cx = t.clientX;
+    const cy = t.clientY;
     const dx = cx - lastChassisPos.x;
     const dy = cy - lastChassisPos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    const currentScale = (typeof VIEWPORT !== 'undefined' && VIEWPORT.scale) ? VIEWPORT.scale : 1.0;
+    const dist = Math.sqrt(dx * dx + dy * dy) / currentScale;
     if (dist > 2) {
-        triggerHandlingNoise(true);
+        const rect = document.getElementById('synthContainer').getBoundingClientRect();
+        const relX = ((cx - rect.left) / rect.width) * 450;
+        const relY = ((cy - rect.top) / rect.height) * 380;
+        triggerHandlingNoise('drag', null, null, { x: relX, y: relY });
         lastChassisPos = { x: cx, y: cy };
     }
 }
@@ -1574,6 +1724,7 @@ function stopChassisDrag() {
     document.removeEventListener('mouseup', stopChassisDrag);
     document.removeEventListener('touchmove', dragChassis);
     document.removeEventListener('touchend', stopChassisDrag);
+    document.removeEventListener('touchcancel', stopChassisDrag);
 }
 
 function startSwitchDrag(e) {
@@ -1607,17 +1758,19 @@ function startSwitchDrag(e) {
         const returnState = is3Way ? 1 : 0;
 
         setSwitchState(currentSwitchEl, downState);
-        triggerHandlingNoise();
+        triggerHandlingNoise('mom_switch_down');
 
         const onUp = () => {
             setSwitchState(currentSwitchEl, returnState);
-            triggerHandlingNoise();
+            triggerHandlingNoise('mom_switch_snap');
             window.removeEventListener('mouseup', onUp);
             window.removeEventListener('touchend', onUp);
+            window.removeEventListener('touchcancel', onUp);
         };
 
         window.addEventListener('mouseup', onUp);
         window.addEventListener('touchend', onUp);
+        window.addEventListener('touchcancel', onUp);
         return; // Skip drag logic
     }
 
@@ -1626,7 +1779,8 @@ function startSwitchDrag(e) {
     isDraggingSwitch = true;
     currentSwitchEl = e.currentTarget;
     hasSwitchMoved = false;
-    triggerHandlingNoise();
+    const isMomentary = currentSwitchEl.id.includes('momentary') || currentSwitchEl.id.includes('mom');
+    triggerHandlingNoise(isMomentary ? 'mom_switch_down' : 'latch_switch');
     switchStartY = e.clientY || e.touches[0].clientY;
     switchStartX = e.clientX || e.touches[0].clientX;
     switchStartVal = parseInt(currentSwitchEl.getAttribute('data-state') || 0);
@@ -1639,6 +1793,7 @@ function startSwitchDrag(e) {
     document.addEventListener('mouseup', stopSwitchDrag);
     document.addEventListener('touchmove', dragSwitch, { passive: false });
     document.addEventListener('touchend', stopSwitchDrag);
+    document.addEventListener('touchcancel', stopSwitchDrag);
 }
 
 function dragSwitch(e) {
@@ -1668,7 +1823,7 @@ function dragSwitch(e) {
     if (newState !== currentState) {
         setSwitchState(currentSwitchEl, newState);
         currentSwitchEl.classList.add('is-touched');
-        triggerHandlingNoise(true);
+        triggerHandlingNoise('latch_switch');
     }
 }
 function stopSwitchDrag(e) {
@@ -1677,6 +1832,7 @@ function stopSwitchDrag(e) {
     document.removeEventListener('mouseup', stopSwitchDrag);
     document.removeEventListener('touchmove', dragSwitch);
     document.removeEventListener('touchend', stopSwitchDrag);
+    document.removeEventListener('touchcancel', stopSwitchDrag);
     document.body.style.cursor = '';
     isDraggingSwitch = false;
     if (!hasSwitchMoved && currentSwitchEl) {
@@ -1684,6 +1840,7 @@ function stopSwitchDrag(e) {
         const current = parseInt(currentSwitchEl.getAttribute('data-state') || 0);
         setSwitchState(currentSwitchEl, (current + 1) % maxStates);
         currentSwitchEl.classList.add('is-touched');
+        triggerHandlingNoise('latch_switch');
     }
     saveState();
     currentSwitchEl = null;
@@ -2284,6 +2441,7 @@ function handleVoltageGroupLogic(targetEl, isMulti) {
     updateAudioParams();
     updateFocusState();
     saveState();
+    triggerHandlingNoise('press_button');
 }
 
 
@@ -3625,6 +3783,7 @@ window.onload = function () {
             document.addEventListener('touchmove', dragCable, { passive: false });
             document.addEventListener('mouseup', handleGlobalMouseUp);
             document.addEventListener('touchend', handleGlobalMouseUp);
+            document.addEventListener('touchcancel', handleGlobalMouseUp);
 
             document.getElementById(id).classList.add('active');
         }
@@ -4961,7 +5120,7 @@ function createCustomJack(id, label, moduleDef, type = 'any') {
         if (cablesToRemove.length > 0) {
             cablesToRemove.forEach(c => removeCable(c.start, c.end));
             redrawCables(); saveState();
-            triggerHandlingNoise();
+            triggerHandlingNoise('plug_jack_out');
         }
     });
 

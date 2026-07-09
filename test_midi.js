@@ -33,7 +33,8 @@ global.audioNodes = {
 
 // Load the CardMIDI class
 const fs = require('fs');
-const content = fs.readFileSync('/Users/vmaurer/Music/WorkshopSystem/patchnotes/patch_notes/js/cards/CardMIDI.js', 'utf8');
+const path = require('path');
+const content = fs.readFileSync(path.join(__dirname, 'js', 'cards', 'CardMIDI.js'), 'utf8');
 // Extract the class definition manually since it's not a module
 const classDef = content.match(/class CardMIDI extends ComputerCard {[\s\S]*?}/)[0];
 // Mock ComputerCard base class

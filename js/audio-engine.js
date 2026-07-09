@@ -3,6 +3,39 @@
 // Handles the sound engine, audio routing and IO (Stereo, Midi, Speaker)
 // =========================================================================
 
+// PiezoContactMic — loaded lazily after worklets resolve
+let piezoMic = null;
+
+/**
+ * Tries to load the pre-extracted OGG piezo samples from assets/piezo/.
+ * Silently falls back (leaves piezoMic = null) if the manifest is missing —
+ * you must run `node scripts/extract-piezo.js` first to generate the files.
+ */
+async function initPiezoContactMic() {
+    if (!window.PiezoContactMic || !audioCtx) return;
+    if (piezoMic && piezoMic.loaded) return; // already loaded
+    try {
+        piezoMic = new PiezoContactMic(audioCtx, 'assets/piezo/manifest.json');
+        await piezoMic.load();
+        // Wire output into Amp input if the graph is ready and amp input is unpatched
+        if (audioNodes['Amp'] && audioNodes['Amp'].input) {
+            try { piezoMic.output.connect(audioNodes['Amp'].input); } catch(e) {}
+        }
+        console.log('[PiezoContactMic] Loaded — groups:', piezoMic.groups.join(', '));
+    } catch(e) {
+        piezoMic = null;
+        console.info('[PiezoContactMic] Not available — run `node scripts/extract-piezo.js` to enable real samples.', e.message);
+    }
+}
+
+// Stop any active granular loop when mouse is released anywhere on the page
+document.addEventListener('mouseup', () => {
+    if (piezoMic) piezoMic.stopLoop();
+});
+document.addEventListener('touchend', () => {
+    if (piezoMic) piezoMic.stopLoop();
+});
+
 /* =========================================================================
    AUDIO WORKLETS
    ========================================================================= */
@@ -37,9 +70,14 @@ class VCOProcessor extends AudioWorkletProcessor {
     }
 
     process(inputs, outputs, parameters) {
-        const outSqr = outputs[0][0];
-        const outSin = outputs[1][0];
+        // Use fixed 128 size, or fallback to output length
+        const outSqr = outputs[0] ? outputs[0][0] : null;
+        const outSin = outputs[1] ? outputs[1][0] : null;
         
+        // Safety: If no outputs are connected, we still need to advance validation phase but maybe skip calc?
+        // But let's assume 128 frame per block usually.
+        const bufferSize = 128;
+
         const freqParams = parameters.frequency;
         const detuneParams = parameters.detune;
         const fbParams = parameters.feedbackAmt;
@@ -48,7 +86,7 @@ class VCOProcessor extends AudioWorkletProcessor {
         const sampleRate = 48000;
         const nyquist = sampleRate / 2;
 
-        for (let i = 0; i < outSqr.length; i++) {
+        for (let i = 0; i < bufferSize; i++) {
             const baseFreq = freqParams.length > 1 ? freqParams[i] : freqParams[0];
             const detune = detuneParams.length > 1 ? detuneParams[i] : detuneParams[0];
             const fbNorm = fbParams.length > 1 ? fbParams[i] : fbParams[0];
@@ -77,14 +115,14 @@ class VCOProcessor extends AudioWorkletProcessor {
             if (this.phase >= 1.0) this.phase -= 1.0;
 
             const sineSamp = Math.sin(this.phase * 2 * Math.PI);
-            if(outSin) outSin[i] = sineSamp * 0.458; 
+            if(outSin && outSin.length > i) outSin[i] = sineSamp * 0.458; 
 
             // Square with PolyBLEP
             let sqrSamp = this.phase < 0.5 ? 1.0 : -1.0;
             sqrSamp += this.poly_blep(this.phase, dt);
             sqrSamp -= this.poly_blep((this.phase + 0.5) % 1.0, dt);
             
-            if(outSqr) outSqr[i] = sqrSamp * 0.375; 
+            if(outSqr && outSqr.length > i) outSqr[i] = sqrSamp * 0.375; 
         }
 
         return true;
@@ -333,16 +371,18 @@ class BenjolinProcessor extends AudioWorkletProcessor {
         
         // LED Sync 
         this.ledCounter = 0;
+
+        this.zeroArray = new Float32Array(128);
     }
 
     process(inputs, outputs, parameters) {
         // Inputs: 0:ClkFwd, 1:ClkBack, 2:Data, 3:Prob, 4:OffCV, 5:VCACV
-        const clkFwd = inputs[0][0] || new Float32Array(128);
-        const clkBack = inputs[1][0] || new Float32Array(128);
-        const dataIn = inputs[2][0] || new Float32Array(128);
-        const probMod = inputs[3][0] || new Float32Array(128);
-        const offCv = inputs[4][0] || new Float32Array(128);
-        const vcaCv = inputs[5][0] || new Float32Array(128);
+        const clkFwd = inputs[0][0] || this.zeroArray;
+        const clkBack = inputs[1][0] || this.zeroArray;
+        const dataIn = inputs[2][0] || this.zeroArray;
+        const probMod = inputs[3][0] || this.zeroArray;
+        const offCv = inputs[4][0] || this.zeroArray;
+        const vcaCv = inputs[5][0] || this.zeroArray;
 
         // Parameters
         const kMain = parameters.knobMain.length > 1 ? parameters.knobMain : [parameters.knobMain[0]];
@@ -552,12 +592,14 @@ class SlopesProcessor extends AudioWorkletProcessor {
         this.port.onmessage = (e) => {
             Object.assign(this.params, e.data);
         };
+
+        this.zeroArray = new Float32Array(128);
     }
 
     process(inputs, outputs, parameters) {
         const output = outputs[0][0];
-        const inputL = inputs[0][0] || new Float32Array(128).fill(0);
-        const cvIn   = inputs[0][1] || new Float32Array(128).fill(0);
+        const inputL = inputs[0][0] || this.zeroArray;
+        const cvIn   = (inputs[0] && inputs[0][1]) || this.zeroArray;
 
         const RAIL_MAX = 1.0; 
         const LOOP_OFFSET = 0.99; 
@@ -626,7 +668,10 @@ class SlopesProcessor extends AudioWorkletProcessor {
 registerProcessor('slopes-processor', SlopesProcessor);
 `;
 
-// --- HUMPBACK FILTER WORKLET (2x Oversampled SVF) ---
+// --- HUMPBACK FILTER WORKLET (4x Oversampled OTA SVF) ---
+// Ported from Workshop System VCV HumpbackFilter.hpp
+// Upgrades: 4x oversampling, OTA asymmetric bias (tanh+0.28 offset), JFET soft-knee clamp,
+// AC-coupled resonance HPF (33kΩ×0.33µF), resistor-network gainRes formula
 const humpbackWorkletCode = `
 class HumpbackFilterProcessor extends AudioWorkletProcessor {
     static get parameterDescriptors() {
@@ -639,88 +684,415 @@ class HumpbackFilterProcessor extends AudioWorkletProcessor {
 
     constructor() {
         super();
-        this.ic1eq = 0; // Internal State 1 (Band)
-        this.ic2eq = 0; // Internal State 2 (Low)
+        this.ic1eq    = 0; // Internal State 1 (Bandpass)
+        this.ic2eq    = 0; // Internal State 2 (Lowpass)
+        this.resHpState = 0; // AC-coupling capacitor state (C3: 33kΩ × 0.33µF, fc≈14.6 Hz)
+    }
+
+    softKneeClip(x, vt, lim) {
+        const ax = Math.abs(x);
+        if (ax <= vt) return x;
+        const d = lim - vt;
+        return (x > 0 ? 1 : -1) * (vt + d * Math.tanh((ax - vt) / d));
     }
 
     process(inputs, outputs, parameters) {
-        const input = inputs[0][0]; 
-        const outLP = outputs[0][0]; 
-        const outSwitched = outputs[1][0]; 
+        const input      = inputs[0][0];
+        const outLP      = outputs[0][0];
+        const outSwitched = outputs[1][0];
 
-        const cutParams = parameters.cutoff;
-        const resParams = parameters.resonance;
+        const cutParams  = parameters.cutoff;
+        const resParams  = parameters.resonance;
         const modeParams = parameters.mode;
-        
-        // Processing at 2x Sample Rate for stability
-        const sampleRate = 48000;
-        const oversampleRate = sampleRate * 2; 
 
-        // We process 128 samples, but run the filter loop 256 times internally
+        // Physical constants — used AS-IS from Workshop System VCV HumpbackFilter.hpp.
+        // The Workshop System operates at instrument level (~±1V audio, NOT ±5V Eurorack),
+        // so these constants map directly onto the Web Audio ±1.0 normalised domain.
+        const V_rail   = 2.1;    // ±10.5V op-amp rail  (2.1 in 1V-normalised domain)
+        const V_jfet   = 2.52;   // ±12.6V JFET clamp   (2.52 in 1V-normalised domain)
+        const G_ota    = 2.0;    // OTA saturation scale
+        const V_thresh = 2.0;    // Soft-knee threshold
+        const S_res    = 0.12;   // Resonance feedback scaling (dimensionless)
+
+        // 4x oversampled rate and AC-coupling HPF coefficient (C3: 33kΩ×0.33µF)
+        // Note: alphaHp computed at OVERSAMPLED rate (not base rate) for physical accuracy.
+        const oversampleRate = sampleRate * 4;
+        const tau    = 33000 * 0.33e-6; // 0.01089 s
+        const dtOs   = 1 / oversampleRate;
+        const alphaHp = tau / (tau + dtOs);
+
         for (let i = 0; i < (outLP ? outLP.length : 128); i++) {
-            
-            // 1. Get Parameters for this sample
-            const cutoff = cutParams.length > 1 ? cutParams[i] : cutParams[0];
-            const res = resParams.length > 1 ? resParams[i] : resParams[0];
-            const mode = modeParams.length > 1 ? modeParams[i] : modeParams[0];
-            
-            // Input with tiny noise floor to allow self-oscillation start
+            const cutoff = cutParams.length  > 1 ? cutParams[i]  : cutParams[0];
+            const res    = resParams.length  > 1 ? resParams[i]  : resParams[0];
+            const mode   = modeParams.length > 1 ? modeParams[i] : modeParams[0];
+
+            // Seed noise for self-oscillation startup
             let inSample = input ? input[i] : 0;
             inSample += (Math.random() - 0.5) * 0.002;
 
-            // 2. Pre-calculate coefficient (f)
-            // Note: We calc f relative to the OVERSAMPLED rate
-            let f = 2 * Math.sin(Math.PI * (cutoff / oversampleRate));
-            // Clamp is now much safer due to higher headroom
-            if (f > 0.9) f = 0.9; 
+            // Resonance potentiometer mapping (100kΩ B-type, calibrated at w=0.83)
+            const w = Math.max(0, Math.min(1, res / 2.0)); // 0..2.0 param → 0..1.0
+            const w_eff = w <= 0.83 ? -0.55 + w * (1.38 / 0.83) : w;
+            const R_pot = 100000, R_fb = 47000, R_in = 22000;
+            const alphaRes = 101000 / (101000 + w_eff * R_pot);
+            const gainRes  = alphaRes - (R_fb / (R_in + (1 - w_eff) * R_pot)) * (1 - alphaRes);
 
-            // Resonance/Damping
-            const q = 2.0 - (res * 2.0);
+            // Cutoff coefficient with 1.60× pre-compensation for 4x oversampling
+            const compCutoff = Math.min(cutoff * 1.60, 22000);
+            let f = 2 * Math.sin(Math.PI * compCutoff / oversampleRate);
+            if (f > 0.9) f = 0.9;
 
-            // 3. OVERSAMPLING LOOP (Run 2x)
-            // We use the same 'inSample' for both substeps (Zero Order Hold)
-            for (let sub = 0; sub < 2; sub++) {
-                const low = this.ic2eq;
+            // 4x oversampling loop — accumulate decimation average
+            let sumLow = 0, sumVal = 0;
+
+            for (let sub = 0; sub < 4; sub++) {
+                const low  = this.ic2eq;
                 const band = this.ic1eq;
 
-                // "Humpback" Character: Tanh on feedback provides the OTA saturation
-                const feedback = Math.tanh(band); 
-                
-                // Chamberlin SVF Topology
-                const high = inSample - (feedback * q) - low;
-                const bandNew = band + (f * high);
-                const lowNew = low + (f * bandNew);
-                
-                this.ic1eq = bandNew;
-                this.ic2eq = lowNew;
+                // JFET source-follower buffers: clamp at gate voltage limits
+                const lowBuf  = Math.max(-V_jfet, Math.min(V_jfet, low));
+                const bandBuf = Math.max(-V_jfet, Math.min(V_jfet, band));
+
+                // IC4B differential resonance feedback, clamped at op-amp rail
+                const vOutRes     = gainRes * bandBuf;
+                const resFeedback = Math.max(-V_rail, Math.min(V_rail, vOutRes));
+
+                // AC-coupled resonance path: C3 HPF removes DC offset from feedback
+                const hpOut = resFeedback - this.resHpState;
+                this.resHpState = this.resHpState * alphaHp + resFeedback * (1 - alphaHp);
+
+                // IC3A inverting summer: mixes input + LP state + AC-resonance feedback
+                const high        = -0.4545 * (inSample + lowBuf) - 3.03 * S_res * hpOut;
+                const highClipped = Math.max(-V_rail, Math.min(V_rail, high));
+
+                // OTA integrators with asymmetric bias (0.28 quiescent current offset)
+                const bandNew = band + f * G_ota * (Math.tanh(highClipped / G_ota + 0.28) - 0.27290);
+                const lowNew  = low  + f * G_ota * (Math.tanh(bandNew    / G_ota + 0.28) - 0.27290);
+
+                // Soft-knee clamp state variables at JFET gate limits
+                this.ic1eq = this.softKneeClip(bandNew, V_thresh, V_jfet);
+                this.ic2eq = this.softKneeClip(lowNew,  V_thresh, V_jfet);
+
+                const curLow  = Math.max(-V_rail, Math.min(V_rail, this.ic2eq));
+                const curBand = Math.max(-V_rail, Math.min(V_rail, this.ic1eq));
+
+                // Mode mapping (matches patchnotes UI convention):
+                // mode 0 = HP, mode 1 = BP, mode 2 = Notch
+                let curVal;
+                if (mode < 0.5)      curVal = highClipped;       // HP
+                else if (mode < 1.5) curVal = curBand;           // BP
+                else                 curVal = highClipped + curLow; // Notch
+
+                sumLow += curLow;
+                sumVal += curVal;
             }
 
-            // 4. Output Stage (Decimate back to 1x)
-            // We read the final state after 2 substeps
-            
-            // Re-calculate HIGH for the output mix based on final states
-            const finalLow = this.ic2eq;
-            const finalBand = this.ic1eq;
-            const finalFeedback = Math.tanh(finalBand);
-            const finalHigh = inSample - (finalFeedback * q) - finalLow;
-
-            if (outLP) {
-                outLP[i] = Math.tanh(finalLow);
-            }
-
-            if (outSwitched) {
-                let val = 0;
-                if (mode < 0.5) val = finalHigh; 
-                else if (mode < 1.5) val = finalBand; 
-                else val = finalHigh + finalLow; // NOTCH (Summing preserves phase cancellation)
-                
-                outSwitched[i] = Math.tanh(val);
-            }
+            // Decimate: average across 4 oversampled substeps
+            if (outLP)       outLP[i]       = sumLow / 4;
+            if (outSwitched) outSwitched[i] = sumVal / 4;
         }
         return true;
     }
 }
 registerProcessor('humpback-processor', HumpbackFilterProcessor);
+`;
+
+// --- AMPLIFIER WORKLET (Mikrophonie Mic Preamp + BJT LoFi Drive) ---
+// Ported from Workshop System VCV Amplifier.hpp
+// Mode 0: Mikrophonie non-inverting op-amp (log-pot taper, RC network, soft-clip anti-lockup)
+// Mode 1: BJT differential pair (Mini Drive, asymmetric rails −9.2V/+5.3V, pink+hum noise)
+const ampWorkletCode = `
+class AmpProcessor extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+        return [
+            { name: 'gain', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0 },
+            { name: 'mode', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0 }
+        ];
+    }
+
+    constructor() {
+        super();
+        this.noiseSeed   = (Math.random() * 4294967295 + 1) >>> 0;
+        this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
+        this.stagePinkB0 = 0; this.stagePinkB1 = 0; this.stagePinkB2 = 0;
+        this.humPhase    = Math.random() * 2 * Math.PI;
+        this.popcornState = 0;
+        this.micHpState  = 0;
+        this.micLpState  = 0;
+        this.lofiInHpState  = 0;
+        this.lofiOutHpState = 0;
+        this.rmsSmooth   = 0.001;
+        this.smoothAmpLevel = 0;
+        this.vuCounter   = 0;
+    }
+
+    nextNoise() {
+        this.noiseSeed = (this.noiseSeed * 1664525 + 1013904223) >>> 0;
+        return (this.noiseSeed / 4294967296) - 0.5;
+    }
+
+    getMicTaper(n) {
+        if (n <= 0) return 0; if (n >= 1) return 1;
+        const xs = [0,0.05,0.20,0.35,0.50,0.65,0.80,0.95,1.0];
+        const ys = [0,0.073398,0.314201,0.836420,0.943054,0.973946,0.988000,0.996000,1.0];
+        for (let i = 0; i < 8; i++) {
+            if (n >= xs[i] && n <= xs[i+1]) {
+                return ys[i] + (n-xs[i])/(xs[i+1]-xs[i]) * (ys[i+1]-ys[i]);
+            }
+        }
+        return 1;
+    }
+
+    getLofiTaper(n) {
+        if (n <= 0) return 0; if (n >= 1) return 0.014845;
+        const xs = [0,0.05,0.20,0.35,0.50,0.65,0.80,0.95,1.0];
+        const ys = [0,0.000938,0.007323,0.011752,0.013114,0.013894,0.014824,0.015079,0.014845];
+        for (let i = 0; i < 8; i++) {
+            if (n >= xs[i] && n <= xs[i+1]) {
+                return ys[i] + (n-xs[i])/(xs[i+1]-xs[i]) * (ys[i+1]-ys[i]);
+            }
+        }
+        return 0.014845;
+    }
+
+    softClip(x, limit) {
+        const thr = limit * 0.8, ax = Math.abs(x);
+        if (ax < thr) return x;
+        const r = limit - thr, v = thr + r * Math.tanh((ax - thr) / r);
+        return x > 0 ? v : -v;
+    }
+
+    process(inputs, outputs, parameters) {
+        const inp  = inputs[0] ? inputs[0][0] : null;
+        const out  = outputs[0][0];
+        const dt   = 1 / sampleRate;
+        const gainP = parameters.gain;
+        const modeP = parameters.mode;
+
+        for (let i = 0; i < 128; i++) {
+            const inputVal = inp ? inp[i] : 0; // Web Audio normalised (±1.0 = full instrument level)
+            const normGain = Math.max(0, Math.min(1, gainP.length > 1 ? gainP[i] : gainP[0]));
+            const mode     = Math.round(modeP.length > 1 ? modeP[i] : modeP[0]);
+
+            // Shared noise sources (pink noise via Paul Kellett 3-pole + 60Hz hum)
+            // Noise levels in normalised units (÷12 vs physical, Workshop System instrument level)
+            const nr = this.nextNoise();
+            const w  = nr * 2;
+            this.pinkB0 = 0.99765*this.pinkB0 + w*0.0990460;
+            this.pinkB1 = 0.96300*this.pinkB1 + w*0.2965164;
+            this.pinkB2 = 0.57000*this.pinkB2 + w*1.0526913;
+            const pink = (this.pinkB0 + this.pinkB1 + this.pinkB2 + w*0.1848) * 0.05;
+            this.humPhase += 2*Math.PI*60*dt;
+            if (this.humPhase > 2*Math.PI) this.humPhase -= 2*Math.PI;
+            const hum = (Math.sin(this.humPhase) + 0.3*Math.sin(this.humPhase*2) + 0.15*Math.sin(this.humPhase*3)) / 1.45;
+
+            let preampOut = 0;
+
+            if (mode === 0) {
+                // === Mode 0: Mikrophonie-style non-inverting op-amp preamp ===
+                const rp = this.nextNoise();
+                if (rp > 0.4998) this.popcornState = this.nextNoise() * 0.05;
+                // Input-referred noise (instrument-level: 300µV/12 normalised)
+                const aNoise = nr*0.00005 + pink*0.000067 + hum*0.000025 + this.popcornState*0.0001;
+                const micIn  = inputVal + aNoise;
+
+                // Input HPF: C5=4.7µF, R5=1MΩ → fc≈0.034 Hz (DC block)
+                const a_hp = dt / (4.7 + dt);
+                this.micHpState += a_hp * (micIn - this.micHpState);
+                const hpF = micIn - this.micHpState;
+
+                // Gain network: R7=100kΩ log-pot, R6=10kΩ, R8=510Ω
+                const wP    = this.getMicTaper(normGain);
+                const Rp23  = (1-wP)*100000;
+                const Rg    = (10000*(Rp23+510)) / (10000+Rp23+510);
+                const Rf    = wP*100000;
+                const Av    = 1 + Rf/Rg;
+                const a_lp  = dt / (Rf*22e-12 + dt); // C7=22pF feedback cap
+                const lim   = 1.0; // ±1.0 normalised rail (=±12V physical in Workshop System)
+
+                const Vc_lin   = this.micLpState + a_lp*((Av-1)*hpF - this.micLpState);
+                const Vout_lin = hpF + Vc_lin;
+                if (Math.abs(Vout_lin) > lim*0.8) {
+                    preampOut = this.softClip(Vout_lin, lim);
+                    this.micLpState = ((1-a_lp)*this.micLpState + a_lp*(Av-1)*preampOut) / (1+a_lp*(Av-1));
+                } else {
+                    this.micLpState = Vc_lin;
+                    preampOut       = Vout_lin;
+                }
+            } else {
+                // === Mode 1: BJT Differential Pair (Mini Drive) ===
+                const v_n_in = nr*0.000017 + pink*0.00002 + hum*0.0000083;
+                const taper  = this.getLofiTaper(normGain);
+                const inAtt  = (inputVal + v_n_in) * taper;
+
+                const a_in = dt / (1/(2*Math.PI*15.9) + dt); // HPF fc=15.9 Hz
+                this.lofiInHpState += a_in * (inAtt - this.lofiInHpState);
+                const v_ac = inAtt - this.lofiInHpState;
+
+                const sr2 = this.nextNoise(), sw2 = sr2*2;
+                this.stagePinkB0 = 0.99765*this.stagePinkB0 + sw2*0.0990460;
+                this.stagePinkB1 = 0.96300*this.stagePinkB1 + sw2*0.2965164;
+                this.stagePinkB2 = 0.57000*this.stagePinkB2 + sw2*1.0526913;
+                const sp  = (this.stagePinkB0+this.stagePinkB1+this.stagePinkB2+sw2*0.1848)*0.05;
+                const v_ns = (sr2*0.000025 + sp*0.000025 + hum*0.0000125) * normGain;
+
+                // Closed-loop BJT: A_cl=201, asymmetric rails −9.2V/+5.3V → normalised by ÷12
+                const vOut = Math.max(-0.767, Math.min(0.442, 201*(v_ac+v_ns)));
+                const a_out = dt / (1/(2*Math.PI*1.59) + dt); // HPF fc=1.59 Hz
+                this.lofiOutHpState += a_out * (vOut - this.lofiOutHpState);
+                preampOut = Math.max(-1.0, Math.min(1.0, (vOut - this.lofiOutHpState)*1.58));
+            }
+
+            // VU meter (fast attack / slow decay)
+            const rect = Math.abs(preampOut);
+            this.rmsSmooth += (rect - this.rmsSmooth) * (rect > this.rmsSmooth ? 0.005 : 0.0005);
+            out[i] = Math.max(-1.0, Math.min(1.0, preampOut)); // output IS already in ±1.0 normalised
+        }
+
+        // Post VU level every 16 frames (≈2.7 ms at 48kHz)
+        if (++this.vuCounter >= 16) {
+            this.vuCounter = 0;
+            const db = 20*Math.log10(Math.max(1e-5, this.rmsSmooth));
+            const tgt = Math.max(0, Math.min(1, (db+20)/26));
+            this.smoothAmpLevel += (tgt-this.smoothAmpLevel) * (tgt>this.smoothAmpLevel ? 0.008 : 0.0004);
+            this.port.postMessage({ type:'vu', level: this.smoothAmpLevel*4.5 });
+        }
+        return true;
+    }
+}
+registerProcessor('amp-processor', AmpProcessor);
+`;
+
+// --- RING MODULATOR WORKLET (Schottky Diode Four-Quadrant Multiplier) ---
+// Ported from Workshop System VCV RingMod.hpp (Sebastian Azevedo design)
+// Double-tanh saturation on both inputs models Schottky diode forward-voltage limiting
+const ringModWorkletCode = `
+class RingModProcessor extends AudioWorkletProcessor {
+    constructor() { super(); }
+
+    process(inputs, outputs, parameters) {
+        const inA = inputs[0] ? inputs[0][0] : null;
+        const inB = inputs[1] ? inputs[1][0] : null;
+        const out = outputs[0][0];
+
+        // Physical constants (Web Audio 1.0 = 12V reference)
+        // VCV: A_sat=B_sat=10V, product normalised by 5V, output ±12V rail
+        const A_SAT = 10/12, B_SAT = 10/12, NORM = 5/12;
+
+        for (let i = 0; i < 128; i++) {
+            const a = inA ? inA[i] : 0;
+            const b = inB ? inB[i] : 0;
+            const satA = A_SAT * Math.tanh(a / A_SAT);
+            const satB = B_SAT * Math.tanh(b / B_SAT);
+            // Normalised multiply + output rail soft-clamp (±1.0)
+            out[i] = Math.tanh((satA * satB) / NORM);
+        }
+        return true;
+    }
+}
+registerProcessor('ringmod-processor', RingModProcessor);
+`;
+
+// --- STOMP WORKLET (Analog Effects Send/Return with Resistor-Network Blend) ---
+// Ported from Workshop System VCV Stomp.hpp
+// Resistor-network passive blend, bilinear HPF DC-blocker, stability LPF, 1-sample feedback delay
+const stompWorkletCode = `
+class StompProcessor extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+        return [
+            { name: 'blend',  defaultValue: 0.0, minValue: 0.0, maxValue: 1.0 },
+            { name: 'fbKnob', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0 },
+            { name: 'pedalboardConnected', defaultValue: 1.0, minValue: 0.0, maxValue: 1.0 }
+        ];
+    }
+
+    constructor() {
+        super();
+        this.hp_w_last = 0; this.hp_input_last = 0;  // HPF DC-blocker state
+        this.last_V_target = 0; this.last_V_U4C_out = 0;
+        this.last_V_U4C_feedback = 0; // 1-sample feedback delay (avoids algebraic loop)
+        this.noiseSeed = (Math.random()*4294967295+1)>>>0;
+        this.pinkB0=0; this.pinkB1=0; this.pinkB2=0;
+        this.humPhase = Math.random()*2*Math.PI;
+    }
+
+    nextNoise() {
+        this.noiseSeed = (this.noiseSeed*1664525+1013904223)>>>0;
+        return (this.noiseSeed/4294967296)-0.5;
+    }
+
+    process(inputs, outputs, parameters) {
+        const dryIn  = inputs[0] ? inputs[0][0] : null;
+        const retIn  = inputs[1] ? inputs[1][0] : null;
+        const sendOut  = outputs[0][0];
+        const finalOut = outputs[1][0];
+
+        const dt = 1/sampleRate;
+        const blendP = parameters.blend, fbP = parameters.fbKnob;
+        const pbConnectedP = parameters.pedalboardConnected;
+
+        // HPF (DC-blocker): C28=100nF, R98=1MΩ → fc=1.59 Hz (bilinear)
+        const alpha_hp = Math.exp(-2*Math.PI*1.59/sampleRate);
+        // Stability LPF: R94=330kΩ, C27=47pF → fc≈10.26 kHz (bilinear)
+        const K=2*(3.3e5*47e-12)*sampleRate, cb=1/(1+K), ca=(1-K)/(1+K);
+
+        for (let i = 0; i < 128; i++) {
+            const stompIn    = (dryIn ? dryIn[i] : 0) * 12; // → physical volts
+            const returnJack = (retIn ? retIn[i] : 0) * 12;
+
+            const pbConnected = pbConnectedP.length > 1 ? pbConnectedP[i] : pbConnectedP[0];
+            const isPb = pbConnected > 0.5;
+
+            this.humPhase += 2*Math.PI*60*dt;
+            if (this.humPhase > 2*Math.PI) this.humPhase -= 2*Math.PI;
+            const hum = (Math.sin(this.humPhase)+0.3*Math.sin(this.humPhase*2)+0.15*Math.sin(this.humPhase*3))/1.45;
+            const w2 = this.nextNoise()*2;
+            this.pinkB0=0.99765*this.pinkB0+w2*0.0990460;
+            this.pinkB1=0.96300*this.pinkB1+w2*0.2965164;
+            this.pinkB2=0.57000*this.pinkB2+w2*1.0526913;
+            const pink=(this.pinkB0+this.pinkB1+this.pinkB2+w2*0.1848)*0.05;
+            const n_U4A=this.nextNoise()*0.00005+pink*0.00005+hum*0.00003;
+            const n_U4D=this.nextNoise()*0.0001;
+            const n_U4C=this.nextNoise()*0.00005+pink*0.00005+hum*0.00003;
+
+            // Feedback pot: 24kΩ resistor-network law on 100kΩ pot
+            const x    = Math.max(0,Math.min(1, fbP.length>1 ? fbP[i] : fbP[0]));
+            const num  = 31*x - 25*x*x, den = 6+50*x-50*x*x;
+            const ratio = Math.abs(den)>1e-6 ? Math.max(0,Math.min(1,num/den)) : 0.5;
+            const gain_fb = 2*ratio - 1; // −1..+1
+
+            // U4D attenuverter (1-sample delay on feedback — topologically correct)
+            const V_U4D = Math.max(-11.5,Math.min(11.5, gain_fb*this.last_V_U4C_feedback + n_U4D));
+            // U4A input stage: −0.082× (Eurorack → instrument level)
+            const V_U4A = Math.max(-11.5,Math.min(11.5, -0.082*stompIn - 0.082*V_U4D + n_U4A));
+
+            sendOut[i] = (V_U4A / (isPb ? 0.082 : 1.0)) / 12; // Boost if pedalboard is connected, otherwise output at instrument level + normalise
+
+            // Return: Eurorack → instrument level → HPF DC-blocker
+            const Vr = returnJack * (isPb ? 0.082 : 1.0);
+            const hw = Vr - this.hp_input_last + alpha_hp*this.hp_w_last;
+            this.hp_input_last=Vr; this.hp_w_last=hw;
+            const V_ret = hw;
+
+            // Passive resistor-network blend (U4C, −22× inverting summer)
+            const y = Math.max(0.0, Math.min(1.0, blendP.length>1 ? blendP[i] : blendP[0]));
+            const tw = V_ret  * (2*y)     / (4*y+3);
+            const td = V_U4A * (2*(1-y)) / (7-4*y);
+            const V_target = -22*(tw+td+n_U4C);
+
+            // Stability LPF (bilinear)
+            const Vout = cb*(V_target+this.last_V_target) - ca*this.last_V_U4C_out;
+            this.last_V_target = V_target;
+            const Vcl = Math.max(-11.5,Math.min(11.5,Vout));
+            this.last_V_U4C_out      = Vcl;
+            this.last_V_U4C_feedback = Vcl;
+
+            finalOut[i] = Vcl/12; // → normalised
+        }
+        return true;
+    }
+}
+registerProcessor('stomp-processor', StompProcessor);
 `;
 
 // --- RECORDER WORKLET ---
@@ -824,16 +1196,18 @@ class CVModProcessor extends AudioWorkletProcessor {
         
         this.ledFrame = 0;
         this.speedZero = false;
+
+        this.zeroArray = new Float32Array(128);
     }
 
     process(inputs, outputs, parameters) {
         // In: 0:Rec, 1:SpeedCV, 2:TimeCV, 3:PhaseCV, 4:Rst, 5:Tog
-        const inRec = inputs[0][0] || new Float32Array(128).fill(0);
-        const inSpeed = inputs[1][0] || new Float32Array(128).fill(0);
-        const inTime = inputs[2][0] || new Float32Array(128).fill(0);
-        const inPhase = inputs[3][0] || new Float32Array(128).fill(0);
-        const inP1 = inputs[4][0] || new Float32Array(128).fill(0);
-        const inP2 = inputs[5][0] || new Float32Array(128).fill(0);
+        const inRec = inputs[0][0] || this.zeroArray;
+        const inSpeed = inputs[1][0] || this.zeroArray;
+        const inTime = inputs[2][0] || this.zeroArray;
+        const inPhase = inputs[3][0] || this.zeroArray;
+        const inP1 = inputs[4][0] || this.zeroArray;
+        const inP2 = inputs[5][0] || this.zeroArray;
 
         // Out: 0:H1, 1:H2, 2:H3, 3:H4
         const out1 = outputs[0][0];
@@ -1850,6 +2224,22 @@ function toggleAudio() {
 async function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Configure for multi-channel output if available
+        const maxCh = audioCtx.destination.maxChannelCount;
+        console.log(`[Audio Output] Max Channels Available: ${maxCh}`);
+
+        if (maxCh >= 6) {
+            audioCtx.destination.channelCount = 6;
+        } else {
+            audioCtx.destination.channelCount = maxCh;
+        }
+
+        audioCtx.destination.channelCountMode = 'explicit';
+        audioCtx.destination.channelInterpretation = 'discrete'; // Critical for forcing separate channels
+
+        console.log(`[Audio Output] Configured for ${audioCtx.destination.channelCount} channels (Discrete).`);
+
         buildAudioGraph();
         await listAudioDevices(); // Populate devices
         showMessage("Audio Engine Initialized", "success");
@@ -1878,37 +2268,134 @@ async function initMic(deviceId = 'default') {
         }
 
         // 1. Request Audio with specific device if provided
-        const constraints = {
+        // Suggest 6 channels for the new USB audio card features
+
+        // First, try with exact:6 to force 6-channel mode
+        let constraints = {
             audio: {
-                deviceId: deviceId ? { exact: deviceId } : undefined,
+                deviceId: deviceId !== 'default' ? { exact: deviceId } : undefined,
                 echoCancellation: false,
                 autoGainControl: false,
                 noiseSuppression: false,
-                channelCount: 2
+                highpassFilter: false,
+                channelCount: { exact: 6 }
             }
         };
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        let stream = null;
+
+        // Try exact 6 channels first
+        try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('[Audio Input] Successfully acquired with exact:6 channels');
+        } catch (err) {
+            console.warn('[Audio Input] Could not get exact 6 channels, trying ideal:', err.message);
+
+            // Fallback to ideal:6, min:1
+            // Keep deviceId exact if specified!
+            constraints.audio.channelCount = { ideal: 6, min: 1 };
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('[Audio Input] Acquired with ideal:6 fallback');
+            } catch (err2) {
+                throw err2; // Let the outer catch handle it
+            }
+        }
+
         currentMicStream = stream;
 
         const mediaStreamSource = audioCtx.createMediaStreamSource(stream);
+        const tracks = stream.getAudioTracks();
 
-        // 2. Connect Mic to the "Stereo_Line_In" Hub
+        console.log(`[Audio Input] Active tracks: ${tracks.length}`);
+
+        if (tracks.length > 0) {
+            tracks.forEach((track, idx) => {
+                console.log(`[Audio Input] Track ${idx}: ${track.label}`);
+                const settings = track.getSettings();
+                console.log(`  Settings:`, settings);
+                const caps = track.getCapabilities();
+                console.log(`  Capabilities:`, caps);
+                if (caps.channelCount) {
+                    console.log(`  Channel Count Range:`, JSON.stringify(caps.channelCount));
+                }
+            });
+
+            // Check actual channel count
+            const settings = tracks[0].getSettings();
+            const actualChannels = settings.channelCount || 2;
+            console.log(`[Audio Input] Actual channel count: ${actualChannels}`);
+
+            if (actualChannels < 6) {
+                console.warn(`[Audio Input] WARNING: Only got ${actualChannels} channels, but 6 were requested. Your browser or device may not support 6-channel input.`);
+            }
+        }
+
+        // 2. Create Splitter to access individual channels
+        if (!audioNodes['Mic_Splitter']) {
+            // We ask for 6 channels.
+            const splitter = audioCtx.createChannelSplitter(6);
+            audioNodes['Mic_Splitter'] = splitter;
+        }
+
+        // Connect Source -> Splitter
+        // Note: if source has fewer channels than splitter's inputs, it upmixes or maps according to standard rules.
+        mediaStreamSource.connect(audioNodes['Mic_Splitter']);
+
+        // NOTIFY ACTIVE CARD
+        // If the card was mounted before Mic was ready, or if we just swapped inputs,
+        // we need to tell it to reconnect its inputs.
+        if (typeof activeComputerCard !== 'undefined' && activeComputerCard && typeof activeComputerCard.onMicChange === 'function') {
+            try {
+                activeComputerCard.onMicChange();
+                console.log('[Audio Input] Notified active card of input change.');
+            } catch (e) {
+                console.warn('[Audio Input] Failed to notify active card:', e);
+            }
+        }
+
+
+        // 3. Connect Mic Ch1/2 to "Stereo_Line_In" Hub (Backwards Compatibility / Default Routing)
+        // We need a merger to reconstruct stereo for the default line in, 
+        // because Stereo_Line_In expects a stereo signal.
         if (audioNodes['Stereo_Line_In']) {
             if (audioNodes['Mic_Source_Node']) {
                 audioNodes['Mic_Source_Node'].disconnect();
             }
-            mediaStreamSource.connect(audioNodes['Stereo_Line_In']);
+
+            // Re-use or create merger for stereo in
+            if (!audioNodes['Mic_Merger_Stereo']) {
+                audioNodes['Mic_Merger_Stereo'] = audioCtx.createChannelMerger(2);
+                audioNodes['Mic_Merger_Stereo'].connect(audioNodes['Stereo_Line_In']);
+            }
+
+            // Connect Splitter 0 -> Merger 0
+            audioNodes['Mic_Splitter'].connect(audioNodes['Mic_Merger_Stereo'], 0, 0);
+            // Connect Splitter 1 -> Merger 1
+            audioNodes['Mic_Splitter'].connect(audioNodes['Mic_Merger_Stereo'], 1, 1);
+
+            // Keep reference to source to disconnect later
             audioNodes['Mic_Source_Node'] = mediaStreamSource;
         }
 
-
-        // 4. Create Splitter for Patch Normalization
-        if (!audioNodes['Mic_Splitter']) {
-            const splitter = audioCtx.createChannelSplitter(2);
-            audioNodes['Mic_Splitter'] = splitter;
+        // 4. Create Nodes for Channel 3 & 4 (CV Inputs) if they don't exist
+        // These will be picked up by CardUSBAudio
+        if (!audioNodes['Input_Ch3']) {
+            const gain = audioCtx.createGain();
+            gain.gain.value = 1.0;
+            audioNodes['Input_Ch3'] = gain;
         }
-        mediaStreamSource.connect(audioNodes['Mic_Splitter']);
+        if (!audioNodes['Input_Ch4']) {
+            const gain = audioCtx.createGain();
+            gain.gain.value = 1.0;
+            audioNodes['Input_Ch4'] = gain;
+        }
+
+        // Connect Splitter 2 -> Input_Ch3
+        audioNodes['Mic_Splitter'].connect(audioNodes['Input_Ch3'], 2, 0);
+        // Connect Splitter 3 -> Input_Ch4
+        audioNodes['Mic_Splitter'].connect(audioNodes['Input_Ch4'], 3, 0);
+
 
         // 5. Update Routing immediately
         updateTapeRouting();
@@ -1917,7 +2404,7 @@ async function initMic(deviceId = 'default') {
         // Show Settings Button
         document.getElementById('audioSettingsBtn')?.classList.remove('hidden');
 
-        showMessage("Microphone Active", "success");
+        showMessage("Microphone Active (4ch Requested)", "success");
         micEnabled = true;
 
     } catch (err) {
@@ -1973,7 +2460,7 @@ function initMidi() {
     }
 
     if (navigator.requestMIDIAccess) {
-        navigator.requestMIDIAccess()
+        navigator.requestMIDIAccess({ sysex: true })
             .then(onMIDISuccess, onMIDIFailure);
     } else {
         showMessage("WebMIDI is not supported by your browser.", "error");
@@ -2081,6 +2568,11 @@ function handleMidiMessage(event, isInternal = false) {
 
     // Safety check for critical nodes
     if (!audioNodes['Midi_Pitch']) return;
+
+    // CARD HOOK: Allow active card to snoop MIDI
+    if (activeComputerCard && typeof activeComputerCard.onMidiMessage === 'function') {
+        activeComputerCard.onMidiMessage(event.data);
+    }
 
     // Use event.data (renamed param from message to event above)
     const [status, data1, data2] = event.data;
@@ -2386,6 +2878,16 @@ function createVCO(id) { // Added ID param to identify self-patching later
     pitchSum.connect(vOctScaler);
     vOctScaler.connect(node.parameters.get('detune'));
 
+    // --- FIREFOX FIX ---
+    // Some browsers sleep the worklet if it has inputs but they are disconnected.
+    // We connect a dummy silent source to Keep-Alive.
+    try {
+        const dummy = audioCtx.createConstantSource();
+        dummy.offset.value = 0;
+        dummy.connect(node); // Connect to Input 0
+        dummy.start();
+    } catch (e) { console.warn("VCO KeepAlive failed", e); }
+
     return {
         osc: node, // Keeps compatibility with generic update logic
         output: sqrBuff, // Default Square out
@@ -2468,60 +2970,57 @@ function createSlopes(isExponential = false) {
 }
 
 function createAmp() {
-    const input = audioCtx.createGain();
-    const drive = audioCtx.createGain();
-    const shaper = audioCtx.createWaveShaper();
-    shaper.curve = createDistortionCurve(0);
-
+    // Upgraded: full Mikrophonie+BJT preamp AudioWorklet
+    // Mode 0 = Mikrophonie op-amp, Mode 1 = BJT differential pair (Mini Drive)
+    const node   = new AudioWorkletNode(audioCtx, 'amp-processor', {
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1]
+    });
+    const input  = audioCtx.createGain();
     const output = audioCtx.createGain();
-    output.gain.value = 2.5;
-
-    input.connect(drive);
-    drive.connect(shaper);
-    shaper.connect(output);
-
-    return { input, drive, shaper, output };
+    input.connect(node);
+    node.connect(output);
+    // Stub properties kept for any code still referencing .drive / .shaper
+    const drive  = audioCtx.createGain();
+    const shaper = { curve: null };
+    return { input, output, workletNode: node, drive, shaper };
 }
 
 function createRingMod() {
-    const gain = audioCtx.createGain();
-    gain.gain.value = 0; // Base gain MUST be 0 so only Input B modulates it.
-
+    // Upgraded: Schottky diode ring multiplier with double-tanh saturation
+    const node  = new AudioWorkletNode(audioCtx, 'ringmod-processor', {
+        numberOfInputs: 2, numberOfOutputs: 1, outputChannelCount: [1]
+    });
     const inputA = audioCtx.createGain();
     const inputB = audioCtx.createGain();
     const output = audioCtx.createGain();
-    output.gain.value = 1.0;
-
-    // Connection Logic: Output = A * B
-    inputA.connect(gain);      // Carrier enters the audio path
-    inputB.connect(gain.gain); // Modulator enters the gain parameter
-    gain.connect(output);
-
+    inputA.connect(node, 0, 0); // Carrier  → worklet input 0
+    inputB.connect(node, 0, 1); // Modulator → worklet input 1
+    node.connect(output, 0);
     return { inputA, inputB, output };
 }
 
 function createStomp() {
-    const input = audioCtx.createGain();
-    const dryGain = audioCtx.createGain();
-    const wetGain = audioCtx.createGain();
-    const output = audioCtx.createGain();
-    const sendOut = audioCtx.createGain();
-    const returnIn = audioCtx.createGain();
+    // Upgraded: resistor-network blend, bilinear HPF, stability LPF, 1-sample feedback delay
+    // 2 inputs (dry, return) and 2 outputs (send, final) allow pedalboard wiring externally
+    const node     = new AudioWorkletNode(audioCtx, 'stomp-processor', {
+        numberOfInputs: 2, numberOfOutputs: 2, outputChannelCount: [1, 1]
+    });
+    const input    = audioCtx.createGain(); // jack-stompIn
+    const returnIn = audioCtx.createGain(); // jack-stompReturn
+    const sendOut  = audioCtx.createGain(); // jack-stompSend
+    const output   = audioCtx.createGain(); // jack-stompOut
+    input.connect(node, 0, 0);    // dry signal → worklet input 0
+    returnIn.connect(node, 0, 1); // return signal → worklet input 1
+    node.connect(sendOut, 0);     // worklet output 0 → send to pedalboard
+    node.connect(output, 1);      // worklet output 1 → final output
+    // Stub nodes kept for any code that still references these properties
+    const dryGain      = audioCtx.createGain();
+    const wetGain      = audioCtx.createGain();
     const feedbackGain = audioCtx.createGain();
-    const feedbackLimiter = audioCtx.createDynamicsCompressor();
-
-    input.connect(dryGain);
-    input.connect(sendOut);
-    returnIn.connect(wetGain);
-    dryGain.connect(output);
-    wetGain.connect(output);
-
-    returnIn.connect(feedbackGain);
-    feedbackGain.connect(feedbackLimiter);
-    feedbackLimiter.connect(sendOut);
-
-    return { input, sendOut, returnIn, output, dryGain, wetGain, feedbackGain };
+    return { input, sendOut, returnIn, output, dryGain, wetGain, feedbackGain,
+             workletNode: node, internalOutput: output };
 }
+
 
 function createPedalboard(ctx) {
     const input = ctx.createGain();
@@ -2803,6 +3302,445 @@ function createCustomModuleNode(module) {
     return null;
 }
 
+const wasmComputerWorkletCode = `
+if (typeof globalThis.performance === 'undefined') {
+    globalThis.performance = {
+        now: () => Date.now()
+    };
+}
+
+class WasmComputerProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.wasmInstance = null;
+        this.wasmExports = null;
+        
+        this.activeCardIndex = -1;
+        this.knobMain = 0.0;
+        this.knobX = 0.0;
+        this.knobY = 0.0;
+        this.switchZ = 0;
+
+        // Jack connection state [audioL, audioR, cv1, cv2, pulse1, pulse2]
+        // Matches ComputerCard.h g_input_connected[6] ordering.
+        // Without setting these, AudioIn/CVIn/PulseIn all return 0!
+        this.inputConnected = [false, false, false, false, false, false];
+        
+        this.ledValues = new Float32Array(6);
+        this.ledTickCounter = 0;
+
+        // Static WASM Heap buffer pointers
+        this.midiReadBufferPtr = 0;
+        this.serialReadBufferPtr = 0;
+        this.serialWriteBufferPtr = 0;
+
+        this.pendingFlashWrites = [];
+
+        // Pointers for block-level processing (float indices)
+        this.inLPtr = 0;
+        this.inRPtr = 0;
+        this.cv1InPtr = 0;
+        this.cv2InPtr = 0;
+        this.pulse1InPtr = 0;
+        this.pulse2InPtr = 0;
+
+        this.outLPtr = 0;
+        this.outRPtr = 0;
+        this.cv1OutPtr = 0;
+        this.cv2OutPtr = 0;
+        this.pulse1OutPtr = 0;
+        this.pulse2OutPtr = 0;
+
+        this.port.onmessage = (e) => {
+            const data = e.data;
+            if (data.type === 'init') {
+                const moduleConfig = {
+                    wasmBinary: data.wasmBinary,
+                    print: (text) => console.log("[Wasm AudioWorklet stdout] " + text),
+                    printErr: (text) => console.error("[Wasm AudioWorklet stderr] " + text),
+                    locateFile: (path) => path
+                };
+                if (typeof Module !== 'undefined') {
+                    Module(moduleConfig).then((instance) => {
+                        this.wasmInstance = instance;
+                        this.wasmExports = instance;
+                        console.log("[WasmComputerProcessor] WASM Module initialized successfully!");
+                        
+                        // Allocate persistent heap buffers for MIDI & Serial
+                        this.midiReadBufferPtr = this.wasmExports._malloc(256);
+                        this.serialReadBufferPtr = this.wasmExports._malloc(1024);
+                        this.serialWriteBufferPtr = this.wasmExports._malloc(1024);
+
+                        // Fetch pointers for block buffers
+                        this.inLPtr = this.wasmExports._get_in_L_ptr() >> 2;
+                        this.inRPtr = this.wasmExports._get_in_R_ptr() >> 2;
+                        this.cv1InPtr = this.wasmExports._get_cv_in1_ptr() >> 2;
+                        this.cv2InPtr = this.wasmExports._get_cv_in2_ptr() >> 2;
+                        this.pulse1InPtr = this.wasmExports._get_pulse_in1_ptr() >> 2;
+                        this.pulse2InPtr = this.wasmExports._get_pulse_in2_ptr() >> 2;
+
+                        this.outLPtr = this.wasmExports._get_out_L_ptr() >> 2;
+                        this.outRPtr = this.wasmExports._get_out_R_ptr() >> 2;
+                        this.cv1OutPtr = this.wasmExports._get_cv_out1_ptr() >> 2;
+                        this.cv2OutPtr = this.wasmExports._get_cv_out2_ptr() >> 2;
+                        this.pulse1OutPtr = this.wasmExports._get_pulse_out1_ptr() >> 2;
+                        this.pulse2OutPtr = this.wasmExports._get_pulse_out2_ptr() >> 2;
+
+                        this.applyPendingFlashWrites();
+                        if (this.wasmExports._set_host_sample_rate) {
+                            this.wasmExports._set_host_sample_rate(sampleRate);
+                        }
+                        if (this.activeCardIndex !== -1) {
+                            console.log("[WasmComputerProcessor] Late-initializing card index:", this.activeCardIndex);
+                            this.wasmExports._init_card(this.activeCardIndex);
+                            if (this.wasmExports._set_input_connected) {
+                                this.wasmExports._set_input_connected(
+                                    this.inputConnected[0], this.inputConnected[1],
+                                    this.inputConnected[2], this.inputConnected[3],
+                                    this.inputConnected[4], this.inputConnected[5]
+                                );
+                            }
+                        }
+                        this.port.postMessage({ type: 'ready' });
+                    }).catch((err) => {
+                        console.error("[WasmComputerProcessor] WASM Init Error:", err);
+                    });
+                } else {
+                    console.error("[WasmComputerProcessor] Modularized 'Module' glue code function is not defined!");
+                }
+            } else if (data.type === 'load_card') {
+                this.activeCardIndex = data.cardIndex;
+                if (this.wasmExports) {
+                    console.log("[WasmComputerProcessor] Loading C++ card index:", this.activeCardIndex);
+                    
+                    // Clear and restore flash if functions exist
+                    if (this.wasmExports._get_flash_ptr && this.wasmExports._get_flash_size) {
+                        const flashPtr = this.wasmExports._get_flash_ptr();
+                        const flashSize = this.wasmExports._get_flash_size();
+                        if (flashPtr && flashSize > 0) {
+                            // Fill flash with 0xFF (erased state)
+                            this.wasmExports.HEAPU8.fill(0xFF, flashPtr, flashPtr + flashSize);
+                            
+                            // If we have saved flash sectors, restore them
+                            if (data.flashSectors) {
+                                const heap = this.wasmExports.HEAPU8;
+                                for (const [sStr, bytes] of Object.entries(data.flashSectors)) {
+                                    const s = parseInt(sStr);
+                                    const sectorStart = flashPtr + (s * 4096);
+                                    if (sectorStart + bytes.length <= flashPtr + flashSize) {
+                                        for (let i = 0; i < bytes.length; i++) {
+                                            heap[sectorStart + i] = bytes[i];
+                                        }
+                                    }
+                                }
+                                console.log("[WasmComputerProcessor] Restored saved flash sectors");
+                            }
+                        }
+                    }
+
+                    this.wasmExports._init_card(this.activeCardIndex);
+                    if (this.wasmExports._set_input_connected) {
+                        this.wasmExports._set_input_connected(
+                            this.inputConnected[0], this.inputConnected[1],
+                            this.inputConnected[2], this.inputConnected[3],
+                            this.inputConnected[4], this.inputConnected[5]
+                        );
+                    }
+                }
+            } else if (data.type === 'unload_card') {
+                this.activeCardIndex = -1;
+                if (this.wasmExports) {
+                    this.wasmExports._init_card(-1);
+                }
+            } else if (data.type === 'controls') {
+                this.knobMain = data.knobMain;
+                this.knobX = data.knobX;
+                this.knobY = data.knobY;
+                this.switchZ = data.switchZ;
+            } else if (data.type === 'connected') {
+                // [audioL, audioR, cv1, cv2, pulse1, pulse2]
+                this.inputConnected = data.connected;
+                if (this.wasmExports && this.wasmExports._set_input_connected) {
+                    this.wasmExports._set_input_connected(
+                        data.connected[0], data.connected[1],
+                        data.connected[2], data.connected[3],
+                        data.connected[4], data.connected[5]
+                    );
+                }
+            } else if (data.type === 'write_flash_bytes') {
+                this.pendingFlashWrites.push({ offset: data.offset, bytes: data.bytes });
+                this.applyPendingFlashWrites();
+                if (this.wasmExports && this.activeCardIndex !== -1) {
+                    this.wasmExports._init_card(this.activeCardIndex);
+                }
+            } else if (data.type === 'midi_to_card') {
+                if (this.wasmExports && this.wasmExports._send_midi_to_card) {
+                    const bytes = data.data;
+                    const sendPacketFn = (b0, b1, b2, b3) => {
+                        this.wasmExports._send_midi_to_card(b0, b1, b2, b3);
+                    };
+                    if (bytes[0] === 0xF0) {
+                        // SysEx
+                        let idx = 0;
+                        while (idx < bytes.length) {
+                            let rem = bytes.length - idx;
+                            let packet = [0, 0, 0, 0];
+                            if (rem >= 3) {
+                                if (bytes[idx + 2] === 0xF7) {
+                                    packet[0] = 0x07; // SysEx ends with 3 bytes
+                                    packet[1] = bytes[idx];
+                                    packet[2] = bytes[idx + 1];
+                                    packet[3] = bytes[idx + 2];
+                                    idx += 3;
+                                } else {
+                                    packet[0] = 0x04; // SysEx starts or continues with 3 bytes
+                                    packet[1] = bytes[idx];
+                                    packet[2] = bytes[idx + 1];
+                                    packet[3] = bytes[idx + 2];
+                                    idx += 3;
+                                }
+                            } else if (rem === 2) {
+                                packet[0] = 0x06; // SysEx ends with 2 bytes
+                                packet[1] = bytes[idx];
+                                packet[2] = bytes[idx + 1];
+                                idx += 2;
+                            } else if (rem === 1) {
+                                packet[0] = 0x05; // SysEx ends with 1 byte
+                                packet[1] = bytes[idx];
+                                idx += 1;
+                            }
+                            sendPacketFn(packet[0], packet[1], packet[2], packet[3]);
+                        }
+                    } else {
+                        // Non-SysEx
+                        let status = bytes[0];
+                        let type = status & 0xF0;
+                        let packet = [0, 0, 0, 0];
+                        if (status >= 0xF8) {
+                            packet[0] = 0x0F;
+                            packet[1] = status;
+                            sendPacketFn(packet[0], packet[1], packet[2], packet[3]);
+                        } else if (type === 0x80 || type === 0x90 || type === 0xA0 || type === 0xB0 || type === 0xE0) {
+                            packet[0] = type >> 4;
+                            packet[1] = status;
+                            packet[2] = bytes[1] ?? 0;
+                            packet[3] = bytes[2] ?? 0;
+                            sendPacketFn(packet[0], packet[1], packet[2], packet[3]);
+                        } else if (type === 0xC0 || type === 0xD0) {
+                            packet[0] = type >> 4;
+                            packet[1] = status;
+                            packet[2] = bytes[1] ?? 0;
+                            sendPacketFn(packet[0], packet[1], packet[2], packet[3]);
+                        } else if (status === 0xF2) {
+                            packet[0] = 0x03;
+                            packet[1] = status;
+                            packet[2] = bytes[1] ?? 0;
+                            packet[3] = bytes[2] ?? 0;
+                            sendPacketFn(packet[0], packet[1], packet[2], packet[3]);
+                        } else if (status === 0xF1 || status === 0xF3) {
+                            packet[0] = 0x02;
+                            packet[1] = status;
+                            packet[2] = bytes[1] ?? 0;
+                            sendPacketFn(packet[0], packet[1], packet[2], packet[3]);
+                        } else if (status === 0xF6) {
+                            packet[0] = 0x05;
+                            packet[1] = status;
+                            sendPacketFn(packet[0], packet[1], packet[2], packet[3]);
+                        }
+                    }
+                }
+            } else if (data.type === 'serial_to_card') {
+                if (this.wasmExports && this.wasmExports._send_serial_to_card && this.serialWriteBufferPtr) {
+                    const bytes = data.data;
+                    const len = Math.min(bytes.length, 1024);
+                    const heap = new Uint8Array(this.wasmExports.HEAPU8.buffer, this.serialWriteBufferPtr, len);
+                    for (let i = 0; i < len; i++) {
+                        heap[i] = bytes[i];
+                    }
+                    this.wasmExports._send_serial_to_card(this.serialWriteBufferPtr, len);
+                }
+            }
+        };
+    }
+
+    applyPendingFlashWrites() {
+        if (this.wasmExports && this.pendingFlashWrites.length > 0) {
+            const flashPtr = this.wasmExports._get_flash_ptr();
+            const heap = this.wasmExports.HEAPU8;
+            for (const write of this.pendingFlashWrites) {
+                for (let i = 0; i < write.bytes.length; i++) {
+                    heap[flashPtr + write.offset + i] = write.bytes[i];
+                }
+            }
+            this.pendingFlashWrites = [];
+        }
+    }
+
+    process(inputs, outputs, parameters) {
+        if (!this.wasmExports || this.activeCardIndex === -1) {
+            for (let i = 0; i < 6; i++) {
+                const output = outputs[i];
+                if (output && output[0]) {
+                    output[0].fill(0);
+                }
+            }
+            return true;
+        }
+
+        const length = 128;
+        const heap = this.wasmExports.HEAPF32;
+
+        // 1. Copy inputs into WASM block buffers
+        if (inputs[0] && inputs[0][0]) {
+            heap.set(inputs[0][0], this.inLPtr);
+        } else {
+            heap.fill(0, this.inLPtr, this.inLPtr + length);
+        }
+
+        if (inputs[1] && inputs[1][0]) {
+            heap.set(inputs[1][0], this.inRPtr);
+        } else {
+            heap.fill(0, this.inRPtr, this.inRPtr + length);
+        }
+
+        if (inputs[2] && inputs[2][0]) {
+            heap.set(inputs[2][0], this.cv1InPtr);
+        } else {
+            heap.fill(0, this.cv1InPtr, this.cv1InPtr + length);
+        }
+
+        if (inputs[3] && inputs[3][0]) {
+            heap.set(inputs[3][0], this.cv2InPtr);
+        } else {
+            heap.fill(0, this.cv2InPtr, this.cv2InPtr + length);
+        }
+
+        if (inputs[4] && inputs[4][0]) {
+            heap.set(inputs[4][0], this.pulse1InPtr);
+        } else {
+            heap.fill(0, this.pulse1InPtr, this.pulse1InPtr + length);
+        }
+
+        if (inputs[5] && inputs[5][0]) {
+            heap.set(inputs[5][0], this.pulse2InPtr);
+        } else {
+            heap.fill(0, this.pulse2InPtr, this.pulse2InPtr + length);
+        }
+
+        // 2. Call WASM block processing function
+        this.wasmExports._process_block(
+            length,
+            this.knobMain,
+            this.knobX,
+            this.knobY,
+            this.switchZ
+        );
+
+        // 3. Copy outputs from WASM block buffers back to JS
+        if (outputs[0] && outputs[0][0]) {
+            outputs[0][0].set(heap.subarray(this.outLPtr, this.outLPtr + length));
+        }
+        if (outputs[1] && outputs[1][0]) {
+            outputs[1][0].set(heap.subarray(this.outRPtr, this.outRPtr + length));
+        }
+        if (outputs[2] && outputs[2][0]) {
+            outputs[2][0].set(heap.subarray(this.cv1OutPtr, this.cv1OutPtr + length));
+        }
+        if (outputs[3] && outputs[3][0]) {
+            outputs[3][0].set(heap.subarray(this.cv2OutPtr, this.cv2OutPtr + length));
+        }
+        if (outputs[4] && outputs[4][0]) {
+            outputs[4][0].set(heap.subarray(this.pulse1OutPtr, this.pulse1OutPtr + length));
+        }
+        if (outputs[5] && outputs[5][0]) {
+            outputs[5][0].set(heap.subarray(this.pulse2OutPtr, this.pulse2OutPtr + length));
+        }
+
+        // 4. Update LEDs and MIDI/Serial
+        let changed = false;
+        for (let j = 0; j < 6; j++) {
+            const rawVal = this.wasmExports ? this.wasmExports._get_led_brightness(j) : 0.0;
+            let smoothVal = this.ledValues[j];
+            if (rawVal > smoothVal) {
+                smoothVal = rawVal;
+            } else {
+                smoothVal = smoothVal * 0.85 + rawVal * 0.15;
+            }
+            if (Math.abs(this.ledValues[j] - smoothVal) > 0.002) {
+                this.ledValues[j] = smoothVal;
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.port.postMessage({
+                type: 'leds',
+                leds: Array.from(this.ledValues)
+            });
+        }
+
+        // Read MIDI from card
+        if (this.wasmExports._read_midi_from_card && this.midiReadBufferPtr) {
+            const count = this.wasmExports._read_midi_from_card(this.midiReadBufferPtr, 256);
+            if (count > 0) {
+                const bytes = new Uint8Array(this.wasmExports.HEAPU8.buffer, this.midiReadBufferPtr, count);
+                this.port.postMessage({
+                    type: 'midi_from_card',
+                    data: Array.from(bytes)
+                });
+            }
+        }
+
+        // Read Serial from card
+        if (this.wasmExports._read_serial_from_card && this.serialReadBufferPtr) {
+            const count = this.wasmExports._read_serial_from_card(this.serialReadBufferPtr, 1024);
+            if (count > 0) {
+                const bytes = new Uint8Array(this.wasmExports.HEAPU8.buffer, this.serialReadBufferPtr, count);
+                this.port.postMessage({
+                    type: 'serial_from_card',
+                    data: Array.from(bytes)
+                });
+            }
+        }
+
+        // Read and persist emulated flash if dirty
+        if (this.wasmExports._is_flash_dirty && this.wasmExports._is_flash_dirty() && this.wasmExports._clear_flash_dirty) {
+            this.wasmExports._clear_flash_dirty();
+            const flashPtr = this.wasmExports._get_flash_ptr ? this.wasmExports._get_flash_ptr() : 0;
+            const flashSize = this.wasmExports._get_flash_size ? this.wasmExports._get_flash_size() : 0;
+            if (flashPtr && flashSize) {
+                const heap = this.wasmExports.HEAPU8;
+                const activeSectors = {};
+                const numSectors = flashSize / 4096;
+                for (let s = 0; s < numSectors; s++) {
+                    const sectorStart = flashPtr + (s * 4096);
+                    let isSectorDirty = false;
+                    for (let i = 0; i < 4096; i++) {
+                        if (heap[sectorStart + i] !== 0xFF) {
+                            isSectorDirty = true;
+                            break;
+                        }
+                    }
+                    if (isSectorDirty) {
+                        const sectorBytes = new Uint8Array(heap.buffer, sectorStart, 4096);
+                        activeSectors[s] = Array.from(sectorBytes);
+                    }
+                }
+                this.port.postMessage({
+                    type: "flash_persisted",
+                    cardId: this.activeCardIndex,
+                    sectors: activeSectors
+                });
+            }
+        }
+
+        return true;
+    }
+}
+registerProcessor('wasm-computer-processor', WasmComputerProcessor);
+`;
+
+
+
 /* =========================================================================
    AUDIO GRAPH BUILDING & ROUTING
    ========================================================================= */
@@ -2854,23 +3792,78 @@ function buildAudioGraph() {
         const blobCVMod = new Blob([cvmodWorkletCode], { type: 'application/javascript' });
         const urlCVMod = URL.createObjectURL(blobCVMod);
 
-        Promise.all([
-            audioCtx.audioWorklet.addModule(urlSlopes),
-            audioCtx.audioWorklet.addModule(urlRec),
-            audioCtx.audioWorklet.addModule(urlTwists),
-            audioCtx.audioWorklet.addModule(urlVco),
-            audioCtx.audioWorklet.addModule(urlHump),
-            audioCtx.audioWorklet.addModule(urlSeq),
-            audioCtx.audioWorklet.addModule(urlBenj),
-            audioCtx.audioWorklet.addModule(urlTool),
-            audioCtx.audioWorklet.addModule(urlSheep),
-            audioCtx.audioWorklet.addModule(urlCVMod)
-        ]).then(() => {
-            audioNodes['workletLoaded'] = true;
-            finishBuild();
-        }).catch(err => {
-            console.error("Worklet Load Failed", err);
-        });
+        // 11. Amp (Mikrophonie + BJT Preamp)
+        const blobAmp = new Blob([ampWorkletCode], { type: 'application/javascript' });
+        const urlAmp = URL.createObjectURL(blobAmp);
+
+        // 12. Ring Modulator (Schottky Model)
+        const blobRingMod = new Blob([ringModWorkletCode], { type: 'application/javascript' });
+        const urlRingMod = URL.createObjectURL(blobRingMod);
+
+        // 13. Stomp (Analog Send/Return)
+        const blobStomp = new Blob([stompWorkletCode], { type: 'application/javascript' });
+        const urlStomp = URL.createObjectURL(blobStomp);
+
+        // Fetch JS glue for WASM computer processor
+        fetch('js/cards/wasm/patchnotes_cards.js?v=' + Date.now())
+            .then(res => res.text())
+            .then(glueText => {
+                const polyfill = `
+// Polyfill to trick Emscripten's environment detection inside AudioWorkletGlobalScope
+globalThis.self = globalThis;
+globalThis.WorkerGlobalScope = true;
+globalThis.location = { href: 'http://localhost/' };
+`;
+                const fullWasmWorkletCode = polyfill + "\n" + glueText + "\n" + wasmComputerWorkletCode;
+                const blobWasm = new Blob([fullWasmWorkletCode], { type: 'application/javascript' });
+                const urlWasm = URL.createObjectURL(blobWasm);
+
+                Promise.all([
+                    audioCtx.audioWorklet.addModule(urlSlopes),
+                    audioCtx.audioWorklet.addModule(urlRec),
+                    audioCtx.audioWorklet.addModule(urlTwists),
+                    audioCtx.audioWorklet.addModule(urlVco),
+                    audioCtx.audioWorklet.addModule(urlHump),
+                    audioCtx.audioWorklet.addModule(urlSeq),
+                    audioCtx.audioWorklet.addModule(urlBenj),
+                    audioCtx.audioWorklet.addModule(urlTool),
+                    audioCtx.audioWorklet.addModule(urlSheep),
+                    audioCtx.audioWorklet.addModule(urlCVMod),
+                    audioCtx.audioWorklet.addModule(urlAmp),
+                    audioCtx.audioWorklet.addModule(urlRingMod),
+                    audioCtx.audioWorklet.addModule(urlStomp),
+                    audioCtx.audioWorklet.addModule(urlWasm)
+                ]).then(() => {
+                    audioNodes['workletLoaded'] = true;
+                    finishBuild();
+                    initPiezoContactMic();
+                }).catch(err => {
+                    console.error("Worklet Load Failed", err);
+                });
+            }).catch(err => {
+                console.error("WASM Glue Fetch Failed, falling back to non-WASM worklets", err);
+                Promise.all([
+                    audioCtx.audioWorklet.addModule(urlSlopes),
+                    audioCtx.audioWorklet.addModule(urlRec),
+                    audioCtx.audioWorklet.addModule(urlTwists),
+                    audioCtx.audioWorklet.addModule(urlVco),
+                    audioCtx.audioWorklet.addModule(urlHump),
+                    audioCtx.audioWorklet.addModule(urlSeq),
+                    audioCtx.audioWorklet.addModule(urlBenj),
+                    audioCtx.audioWorklet.addModule(urlTool),
+                    audioCtx.audioWorklet.addModule(urlSheep),
+                    audioCtx.audioWorklet.addModule(urlCVMod),
+                    audioCtx.audioWorklet.addModule(urlAmp),
+                    audioCtx.audioWorklet.addModule(urlRingMod),
+                    audioCtx.audioWorklet.addModule(urlStomp)
+                ]).then(() => {
+                    audioNodes['workletLoaded'] = true;
+                    finishBuild();
+                    initPiezoContactMic();
+                }).catch(err => {
+                    console.error("Worklet Load Failed", err);
+                });
+            });
 
         return;
     } else {
@@ -2899,6 +3892,80 @@ function finishBuild() {
         audioNodes['Comp_CV1_Out'] = compIO.cv1Out;
         audioNodes['Comp_CV2_Out'] = compIO.cv2Out;
         audioNodes['Comp_P1_Out'] = compIO.pulse1Out;
+
+        // --- WASM COMPUTER WORKLET NODE ---
+        let hasWasmWorklet = false;
+        if (audioNodes['WasmComputerKeepAlive']) {
+            try {
+                audioNodes['WasmComputerKeepAlive'].disconnect();
+            } catch (e) {
+                console.warn("WASM Computer KeepAlive disconnect failed:", e);
+            }
+            delete audioNodes['WasmComputerKeepAlive'];
+        }
+        if (audioNodes['WasmComputerNode']) {
+            hasWasmWorklet = true;
+            try {
+                audioNodes['WasmComputerNode'].disconnect();
+            } catch (e) {
+                console.warn("WASM Computer Node disconnect failed:", e);
+            }
+        } else {
+            try {
+                const wasmComputerNode = new AudioWorkletNode(audioCtx, 'wasm-computer-processor', {
+                    numberOfInputs: 6,
+                    numberOfOutputs: 6,
+                    outputChannelCount: [1, 1, 1, 1, 1, 1]
+                });
+                audioNodes['WasmComputerNode'] = wasmComputerNode;
+                hasWasmWorklet = true;
+
+                // Fetch compiled WASM binary and send to worklet node
+                fetch('js/cards/wasm/patchnotes_cards.wasm?v=' + Date.now())
+                    .then(res => res.arrayBuffer())
+                    .then(wasmBinary => {
+                        audioNodes['WasmComputerNode'].port.postMessage({
+                            type: 'init',
+                            wasmBinary: wasmBinary
+                        });
+                    }).catch(err => {
+                        console.error("WASM Binary Fetch Failed", err);
+                    });
+            } catch (e) {
+                console.warn("WASM Computer Processor worklet not available", e);
+            }
+        }
+
+        if (hasWasmWorklet) {
+            // Keep-alive connection to prevent Web Audio from sleeping the worklet
+            try {
+                const keepAlive = audioCtx.createGain();
+                keepAlive.gain.value = 0.0;
+                audioNodes['WasmComputerNode'].connect(keepAlive);
+                keepAlive.connect(audioCtx.destination);
+                audioNodes['WasmComputerKeepAlive'] = keepAlive;
+            } catch (e) {
+                console.warn("WASM KeepAlive connection failed:", e);
+            }
+        }
+
+        if (hasWasmWorklet) {
+            // Direct connections without Merger or Splitter
+            compIO.inputL.connect(audioNodes['WasmComputerNode'], 0, 0);
+            compIO.inputR.connect(audioNodes['WasmComputerNode'], 0, 1);
+            compIO.cv1In.connect(audioNodes['WasmComputerNode'], 0, 2);
+            compIO.cv2In.connect(audioNodes['WasmComputerNode'], 0, 3);
+            compIO.pulse1In.connect(audioNodes['WasmComputerNode'], 0, 4);
+            compIO.pulse2In.connect(audioNodes['WasmComputerNode'], 0, 5);
+
+            // Worklet Node outputs directly to IO Outputs
+            audioNodes['WasmComputerNode'].connect(compIO.outputL, 0, 0);
+            audioNodes['WasmComputerNode'].connect(compIO.outputR, 1, 0);
+            audioNodes['WasmComputerNode'].connect(compIO.cv1Out, 2, 0);
+            audioNodes['WasmComputerNode'].connect(compIO.cv2Out, 3, 0);
+            audioNodes['WasmComputerNode'].connect(compIO.pulse1Out, 4, 0);
+            audioNodes['WasmComputerNode'].connect(compIO.pulse2Out, 5, 0);
+        }
 
         if (!audioNodes['Midi_Pitch']) {
             audioNodes['Midi_Pitch'] = audioCtx.createConstantSource();
@@ -3057,10 +4124,9 @@ function finishBuild() {
     // Note: We do NOT disconnect custom modules here because we just recreated them.
     // Disconnecting them would break their internal wiring (e.g. CV Input connected to Gain Param).
 
-    disconnectNode(audioNodes['Stereo_Line_In']);
     disconnectNode(audioNodes['Stereo_L_Pre']);
     disconnectNode(audioNodes['Stereo_R_Pre']);
-    if (audioNodes['Mic_Splitter']) disconnectNode(audioNodes['Mic_Splitter']);
+    // if (audioNodes['Mic_Splitter']) disconnectNode(audioNodes['Mic_Splitter']); // Don't disconnect! It breaks Card connections.
 
     if (audioNodes['VCO1']) {
         disconnectNode(audioNodes['VCO1'].output);
@@ -3266,6 +4332,10 @@ function finishBuild() {
     if (!isConnected('jack-ampIn')) {
         if (audioNodes['Chassis_Gain']) audioNodes['Chassis_Gain'].connect(audioNodes['Amp'].input);
         if (audioNodes['Scratch_Gain']) audioNodes['Scratch_Gain'].connect(audioNodes['Amp'].input);
+        // Reconnect PiezoContactMic output each time graph is rebuilt (if samples are loaded)
+        if (piezoMic && piezoMic.loaded) {
+            try { piezoMic.output.connect(audioNodes['Amp'].input); } catch(e) {}
+        }
     }
 
     // Humpback Filter Normalization
@@ -3426,13 +4496,22 @@ const updateSlopes = (id, knobId, shapeSwId, loopSwId, ledTopId, ledBotId) => {
     }
 };
 
-function triggerHandlingNoise(isDrag = false) {
+function triggerHandlingNoise(eventType = 'tap', velocity = null, targetId = null, coords = null) {
     if (!audioCtx || !audioNodes['Chassis_Gain'] || !audioNodes['Scratch_Gain']) return;
 
     const now = audioCtx.currentTime;
-    const thump = audioNodes['Chassis_Gain'].gain;
+    const thump   = audioNodes['Chassis_Gain'].gain;
     const scratch = audioNodes['Scratch_Gain'].gain;
     const scratchFilter = audioNodes['Scratch_Filter'];
+
+    let type = eventType;
+    if (type === true) type = 'drag';
+    if (type === false || !type) type = 'tap';
+
+    // 50/50 latch switch randomization to match VCV behavior
+    if (type === 'latch_switch') {
+        type = Math.random() < 0.5 ? 'latch_switch' : 'mom_switch_snap';
+    }
 
     const knobId = 'knob-medium-amp';
     const savedState = componentStates[knobId];
@@ -3450,12 +4529,129 @@ function triggerHandlingNoise(isDrag = false) {
         return;
     }
 
+    // Calculate proximity scaling for knobs to match VCV Rack's getKnobProximity()
+    let proximity = 1.0;
+    if (targetId && targetId.startsWith('knob-') && typeof SYSTEM_CONFIG !== 'undefined' && SYSTEM_CONFIG[targetId]) {
+        const config = SYSTEM_CONFIG[targetId];
+        if (config && config.x && config.y) {
+            // Preamp contact mic is at Amp Gain knob position {51.35%, 16.75%}
+            const ax = 51.35;
+            const ay = 16.75;
+            const px = parseFloat(config.x);
+            const py = parseFloat(config.y);
+            if (!isNaN(px) && !isNaN(py)) {
+                const dist = Math.sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay));
+                proximity = Math.exp(-dist / 30.0);
+            }
+        }
+        if (proximity < 0.01) return; // Bypassed if too far to be audible
+    }
+
     thump.cancelScheduledValues(now);
     scratch.cancelScheduledValues(now);
 
-    const thumpVol = 1.5 * isDrag ? 0.5 : 3.0 * gainFactor;
-    const scratchVol = 0.0005 * isDrag ? (1.5 + Math.random()) : 2.0 * gainFactor;
-    const duration = 10 * isDrag ? 0.04 : 0.15;
+    // === Primary: real piezo samples ===
+    if (piezoMic && piezoMic.loaded) {
+        const groups = piezoMic.groups;
+        
+        if (type === 'drag') {
+            let loopGrp = 'scratch_near_loop';
+            let volScale = 1.2;
+            let cutoff = 2500;
+
+            if (coords) {
+                if (coords.x < 200) {
+                    loopGrp = 'scratch_mid_loop';
+                    volScale = 0.4;
+                    cutoff = 1200; // Lowpass filter in VCV
+                } else if (coords.x < 400) {
+                    loopGrp = 'scratch_mid_loop';
+                    volScale = 0.7;
+                    cutoff = 2200;
+                } else if (coords.y < 250) {
+                    loopGrp = 'scratch_near_loop';
+                    volScale = 1.2;
+                    cutoff = 2500;
+                } else {
+                    loopGrp = 'scratch_grating_loop';
+                    volScale = 1.2;
+                    cutoff = 2500;
+                }
+            } else {
+                loopGrp = gainFactor > 0.6 ? 'scratch_near_loop' : 'scratch_mid_loop';
+                volScale = 0.6;
+            }
+
+            if (!piezoMic._activeLoop || piezoMic._activeLoop !== loopGrp) {
+                if (piezoMic._activeLoop) piezoMic.stopLoop();
+                piezoMic.startLoop(loopGrp, proximity * volScale);
+            }
+            scratchFilter.frequency.setValueAtTime(cutoff, now);
+
+        } else if (type === 'rotate_knob_loop') {
+            const loopGrp = 'rotate_knob_loop';
+            if (!piezoMic._activeLoop) {
+                piezoMic.startLoop(loopGrp, proximity * 0.4);
+            }
+        } else {
+            let chosen = null;
+            let volScale = 1.0;
+
+            if (groups.includes(type)) {
+                chosen = type;
+            } else if (type === 'tap' && coords) {
+                if (coords.x < 200) {
+                    chosen = 'tap_far';
+                    volScale = 0.5;
+                } else if (coords.x < 400) {
+                    chosen = 'tap_mid';
+                    volScale = 0.8;
+                } else if (coords.y < 250) {
+                    chosen = 'tap_near';
+                    volScale = 1.0;
+                } else {
+                    chosen = 'bump_chassis';
+                    volScale = 1.0;
+                }
+            } else {
+                const nearGrp = groups.find(g => g === 'tap_near');
+                const midGrp  = groups.find(g => g === 'tap_mid');
+                const farGrp  = groups.find(g => g === 'tap_far');
+                const bumpGrp = groups.find(g => g === 'bump_chassis');
+                chosen = gainFactor > 0.65 ? (nearGrp || bumpGrp || midGrp || groups[0])
+                       : gainFactor > 0.3  ? (midGrp  || nearGrp || farGrp || groups[0])
+                       :                     (farGrp  || midGrp  || nearGrp || groups[0]);
+            }
+            
+            if (chosen) {
+                const vel = velocity !== null ? velocity : (proximity * volScale * (0.5 + Math.random() * 0.5));
+                piezoMic.trigger(chosen, {
+                    velocity: vel,
+                    pitch: 1 + (Math.random() - 0.5) * 0.06
+                });
+            }
+        }
+
+        const bgLevel = 0.005 * gainFactor;
+        const bDur = (type === 'drag' || type === 'rotate_knob_loop') ? 0.04 : 0.12;
+        const baseFreq = (type === 'drag' || type === 'rotate_knob_loop') ? (2500 + Math.random() * 3000) : 2500;
+        if (type !== 'drag') {
+            scratchFilter.frequency.setValueAtTime(baseFreq, now);
+        }
+        thump.setValueAtTime(0, now);
+        thump.linearRampToValueAtTime(bgLevel * 0.5, now + 0.005);
+        thump.exponentialRampToValueAtTime(0.0001, now + bDur);
+        scratch.setValueAtTime(0, now);
+        scratch.linearRampToValueAtTime(bgLevel * 0.1, now + 0.001);
+        scratch.exponentialRampToValueAtTime(0.0001, now + bDur / 2);
+        return;
+    }
+
+    // === Fallback: noise simulation ===
+    const isDrag = (type === 'drag' || type === 'rotate_knob_loop');
+    const thumpVol  = 1.5 * (isDrag ? 0.5 : 3.0) * gainFactor * proximity;
+    const scratchVol = 0.0005 * (isDrag ? (1.5 + Math.random()) : 2.0) * gainFactor * proximity;
+    const duration  = 10 * (isDrag ? 0.04 : 0.15);
 
     thump.setValueAtTime(0, now);
     thump.linearRampToValueAtTime(thumpVol, now + 0.005);
@@ -3637,7 +4833,7 @@ function updateAudioParams() {
 
         // 3. Resonance
         const rRaw = getKnobValue(kRes, 0, 1, 'linear');
-        const resVal = Math.pow(rRaw, 1.4) * 1.3;
+        const resVal = Math.pow(rRaw, 0.5) * 2.0; // Full 0..1.0 w-range for VCV gainRes formula, self-resonance at 3pm (rRaw=0.8 -> w~0.9)
         safeParam(node.parameters.get('resonance'), resVal, now);
 
         // 4. Update Mode Switch
@@ -3665,11 +4861,13 @@ function updateAudioParams() {
     updateSlopes('Slopes1', 'knob-medium-slopes1', 'switch-3way-slopes1shape', 'switch-3way-slopes1loop', 'led-slopes1-rise', 'led-slopes1-fall');
     updateSlopes('Slopes2', 'knob-medium-slopes2', 'switch-3way-slopes2shape', 'switch-3way-slopes2loop', 'led-slopes2-rise', 'led-slopes2-fall');
 
-    // Amp & Mixer
-    const ampGain = getKnobValue('knob-medium-amp', 0, 7.0, 'exp');
+    // Amp & Mixer — mode is inverted vs VCV (sw=0 = LoFi, sw=1 = Mic in patchnotes UI)
+    const ampGain = getKnobValue('knob-medium-amp', 0, 1, 'linear'); // 0..1 knob → worklet gain param
     const ampMode = componentStates['switch-2way-amp']?.value || 0;
-    audioNodes['Amp'].shaper.curve = createDistortionCurve(ampMode === 1 ? 400 : 20);
-    safeParam(audioNodes['Amp'].drive.gain, ampGain, now);
+    if (audioNodes['Amp']?.workletNode) {
+        safeParam(audioNodes['Amp'].workletNode.parameters.get('gain'), ampGain, now);
+        safeParam(audioNodes['Amp'].workletNode.parameters.get('mode'), 1 - ampMode, now); // invert: sw0=LoFi, sw1=Mic
+    }
 
     safeParam(audioNodes['Mixer_Ch1'].gain, getKnobValue('knob-small-mix1', 0, 1), now);
     safeParam(audioNodes['Mixer_Ch2'].gain, getKnobValue('knob-small-mix2', 0, 1), now);
@@ -3692,19 +4890,20 @@ function updateAudioParams() {
     safeParam(audioNodes['Volt3'].offset, getInterpolatedVoltage(voltKnobAngle, btnIndex, 2), now);
     safeParam(audioNodes['Volt4'].offset, getInterpolatedVoltage(voltKnobAngle, btnIndex, 3), now);
 
-    // Stompbox
+    // Stompbox — parameters now routed directly to worklet AudioParams
     const stomp = audioNodes['Stomp'];
-    const stompBlend = getKnobValue('knob-small-stompBlend', 0, 1);
-    safeParam(stomp.dryGain.gain, 1.0 - stompBlend, now);
-    safeParam(stomp.wetGain.gain, stompBlend, now);
+    if (stomp?.workletNode) {
+        const stompBlend  = getKnobValue('knob-small-stompBlend', 0, 1);
+        safeParam(stomp.workletNode.parameters.get('blend'), stompBlend, now);
 
-    const fbKnob = componentStates['knob-small-stompFeedback'];
-    const fbAngle = fbKnob ? parseFloat(fbKnob.value) : -150;
-    let fbGain = 0;
-    if (Math.abs(fbAngle) > 10) {
-        fbGain = (fbAngle / 150.0) * 1.2;
+        const fbKnob  = componentStates['knob-small-stompFeedback'];
+        const fbAngle = fbKnob ? parseFloat(fbKnob.value) : -150;
+        const fbNorm  = Math.max(0, Math.min(1, (fbAngle + 150) / 300)); // −150..150 → 0..1
+        safeParam(stomp.workletNode.parameters.get('fbKnob'), fbNorm, now);
+
+        const isPb = cableData.some(c => c.start === 'jack-stompReturn' || c.end === 'jack-stompReturn') ? 0.0 : 1.0;
+        safeParam(stomp.workletNode.parameters.get('pedalboardConnected'), isPb, now);
     }
-    safeParam(stomp.feedbackGain.gain, fbGain, now);
 
     // Pedalboard
     const pb = audioNodes['Pedalboard'].nodes;

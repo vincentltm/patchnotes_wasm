@@ -353,13 +353,20 @@ function updateInterfaceScaling() {
     // Base scale factor (1.0 when synth is 1200px wide)
     const globalScale = trueSynthWidth / 1200;
 
-    // 1. Slot Scale (Program Card)
+    // 1. Slot Scale (Program Card) & Reset Button
     if (cardSlot) {
         cardSlot.style.fontSize = `${48 * globalScale}px`;
         const exactWidth = trueSynthWidth * 0.09;
         const exactHeight = exactWidth * 0.12;
         cardSlot.style.width = `${exactWidth}px`;
         cardSlot.style.height = `${exactHeight}px`;
+
+        const resetBtn = document.getElementById('computerResetBtn');
+        if (resetBtn) {
+            const btnSize = exactWidth * 0.18; // Proportional sizing next to the card slot
+            resetBtn.style.width = `${btnSize}px`;
+            resetBtn.style.height = `${btnSize}px`;
+        }
     }
 
     // 2. PEDALBOARD SCALING

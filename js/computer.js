@@ -28,6 +28,8 @@ function swapComputerCard(typeIdOrName) {
     // Double check we actually found something (edge case: library only has 1 broken item)
     if (!cardDef) return;
 
+    window.activeComputerCardId = cardDef.id;
+
     // 2. Unmount Old
     if (activeComputerCard) {
         if (activeComputerCard.unmount) activeComputerCard.unmount();
@@ -43,6 +45,7 @@ function swapComputerCard(typeIdOrName) {
             const io = (typeof audioNodes !== 'undefined') ? audioNodes['Computer_IO'] : null;
 
             activeComputerCard = new cardDef.class(ctx, io);
+            activeComputerCard.name = cardDef.name;
             activeComputerCard.mount();
         } catch (err) {
             console.error(`Failed to mount card ${cardDef.name}:`, err);
@@ -63,23 +66,21 @@ function swapComputerCard(typeIdOrName) {
     }
 
     // 4. Update Visuals
-    const labelEl = document.getElementById('activeCardLabel');
-    const digitEl = document.getElementById('activeCardDigits');
     const tooltipEl = document.getElementById('activeCardTooltip');
-    const cardEl = document.querySelector('.program-card');
+    if (tooltipEl) {
+        tooltipEl.innerHTML = `<strong>${cardDef.name}</strong> [Firmware ${cardDef.num}]<br><em style="color:#a1a1aa">${cardDef.category || ""}</em><hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:4px 0">${cardDef.desc}`;
+    }
 
-    if (labelEl) labelEl.textContent = cardDef.name;
-    if (digitEl) digitEl.textContent = cardDef.num;
-    if (tooltipEl) tooltipEl.textContent = cardDef.desc;
-
-    if (cardEl) cardEl.style.opacity = '1';
+    updateCardVisuals(cardDef);
 
     // Flash Effect
-    if (labelEl && cardDef.id !== 'none') {
-        labelEl.style.opacity = 0;
+    const labelContainer = document.getElementById('activeCardLabelContainer');
+    const digitEl = document.getElementById('activeCardDigits');
+    if (labelContainer && cardDef.id !== 'none') {
+        labelContainer.style.opacity = 0;
         if (digitEl) digitEl.style.opacity = 0;
         setTimeout(() => {
-            labelEl.style.opacity = 1;
+            labelContainer.style.opacity = 1;
             if (digitEl) digitEl.style.opacity = 0.9;
         }, 50);
     }
@@ -252,6 +253,95 @@ function selectCardFromMenu(cardId) {
 // 5. UI: SLOT RENDERING
 // =========================================================================
 
+function updateCardVisuals(cardDef) {
+    const cardEl = document.querySelector('.program-card');
+    if (!cardEl) return;
+
+    if (!cardDef || cardDef.id === 'none') {
+        cardEl.style.display = 'none';
+        return;
+    }
+
+    cardEl.style.display = 'block';
+    cardEl.style.opacity = '1';
+
+    // 1. Determine background SVG
+    let bgUrl = 'images/card_blank.svg';
+    let isPrebaked = false;
+
+    if (cardDef.id === 'turing') {
+        bgUrl = 'images/card_turing.svg';
+        isPrebaked = true;
+    } else if (cardDef.id === 'reverb') {
+        bgUrl = 'images/card_reverb.svg';
+        isPrebaked = true;
+    } else if (cardDef.id === 'midi') {
+        bgUrl = 'images/card_midi.svg';
+        isPrebaked = true;
+    }
+
+    cardEl.style.backgroundImage = `url(${bgUrl})`;
+    if (isPrebaked) {
+        cardEl.classList.add('svg-prebaked');
+    } else {
+        cardEl.classList.remove('svg-prebaked');
+    }
+
+    // 2. Update Digits
+    const digitEl = document.getElementById('activeCardDigits');
+    if (digitEl) {
+        digitEl.textContent = cardDef.num;
+    }
+
+    // 3. Update hidden label for DOM lookups (preserves compatibility)
+    const labelEl = document.getElementById('activeCardLabel');
+    if (labelEl) {
+        labelEl.textContent = cardDef.name;
+    }
+
+    // 4. Update Label Container (split into rotated vertical words)
+    const labelContainer = document.getElementById('activeCardLabelContainer');
+    if (labelContainer) {
+        labelContainer.innerHTML = '';
+        
+        let nameText = cardDef.name;
+        if (cardDef.id === 'utility_pair' && activeComputerCard && !activeComputerCard.fake) {
+            const UTILITIES_SHORT = [
+                "Attn","Bern","Crsh","Chrd","Chor","C.Div","Cross","CVMx",
+                "Dly","Eucl","Gltc","K-S","LPG","Max","Qnt","S&H",
+                "Slp","LFO","Saw","T185","VCA","VCO","Fold","W.Cmp"
+            ];
+            const l = activeComputerCard.utilityIndexL;
+            const r = activeComputerCard.utilityIndexR;
+            if (l >= 0 && l < 24 && r >= 0 && r < 24) {
+                nameText = UTILITIES_SHORT[l] + " " + UTILITIES_SHORT[r];
+            }
+        }
+
+        const words = nameText.toUpperCase().split(' ').filter(w => w.trim() !== '').slice(0, 2);
+        labelContainer.className = `card-label-container words-${words.length}`;
+        words.forEach((word, idx) => {
+            const wordEl = document.createElement('div');
+            wordEl.className = `card-word card-word-${idx}`;
+            wordEl.textContent = word;
+
+            // Calculate font size using VCV's exact algorithm:
+            let fs = 11.0; // in SVG units (where card width is 32)
+            const approx_w = word.length * fs * 0.7;
+            if (approx_w > 38.0) {
+                fs = 38.0 / (word.length * 0.7);
+            }
+            if (fs < 5.0) fs = 5.0;
+
+            // Convert to cqw (percentage of card width: fs / 32 * 100)
+            const fsCqw = (fs / 32.0) * 100.0;
+            wordEl.style.fontSize = `${fsCqw}cqw`;
+
+            labelContainer.appendChild(wordEl);
+        });
+    }
+}
+
 function renderCardSlot() {
     const container = document.getElementById('synthContainer');
     const old = document.getElementById('computerCardSlot');
@@ -271,8 +361,6 @@ function renderCardSlot() {
     card.style.pointerEvents = 'none';
 
     // Initial State
-    let labelText = "No Card";
-    let numText = "--";
     let targetId = 'none';
 
     if (activeComputerCard) {
@@ -284,16 +372,15 @@ function renderCardSlot() {
     }
 
     const def = (window.AVAILABLE_CARDS || []).find(c => c.id === targetId);
-    if (def) {
-        labelText = def.name;
-        numText = def.num;
-    }
 
     // Build DOM
-    const label = document.createElement('div');
-    label.className = 'card-label';
-    label.id = 'activeCardLabel';
-    label.textContent = labelText;
+    const labelContainer = document.createElement('div');
+    labelContainer.className = 'card-label-container';
+    labelContainer.id = 'activeCardLabelContainer';
+
+    const hiddenLabel = document.createElement('div');
+    hiddenLabel.id = 'activeCardLabel';
+    hiddenLabel.style.display = 'none';
 
     const logo = document.createElement('div');
     logo.className = 'card-decoration';
@@ -302,24 +389,31 @@ function renderCardSlot() {
     const digits = document.createElement('div');
     digits.className = 'card-digits';
     digits.id = 'activeCardDigits';
-    digits.textContent = numText;
 
-    card.appendChild(label);
+    card.appendChild(labelContainer);
+    card.appendChild(hiddenLabel);
     card.appendChild(logo);
     card.appendChild(digits);
     slot.appendChild(card);
-    card.style.opacity = '1';
 
     let descText = "";
-    if (def) descText = def.desc;
-    tooltip.textContent = descText;
+    if (def) {
+        descText = `<strong>${def.name}</strong> [Firmware ${def.num}]<br><em style="color:#a1a1aa">${def.category || ""}</em><hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:4px 0">${def.desc}`;
+    }
+    tooltip.innerHTML = descText;
     slot.appendChild(tooltip);
+
+    // Create button container for easier positioning
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'card-btn-container';
+    btnContainer.id = 'cardBtnContainer';
+    slot.appendChild(btnContainer);
 
     // Add a dedicated Menu/Library button for easier mobile access
     const libBtn = document.createElement('div');
     libBtn.className = 'card-lib-btn';
     libBtn.textContent = 'LIBRARY';
-    slot.appendChild(libBtn);
+    btnContainer.appendChild(libBtn);
     libBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         openCardSelector();
@@ -397,6 +491,45 @@ function renderCardSlot() {
         openCardSelector();
     });
 
+    // Remove any existing reset button first
+    const oldReset = document.getElementById('computerResetBtn');
+    if (oldReset) oldReset.remove();
+
+    // Create physical reset button
+    const resetBtn = document.createElement('div');
+    resetBtn.className = 'computer-reset-btn';
+    resetBtn.id = 'computerResetBtn';
+    resetBtn.title = "Reset Program Card (reboots VM & preserves flash)";
+
+    const handleReset = (e) => {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        if (window.activeComputerCardId && window.activeComputerCardId !== 'none') {
+            // Trigger visual eject/insert animation on the slot
+            slot.classList.add('eject');
+            
+            // Call the card's reset method or re-swap it
+            if (activeComputerCard && typeof activeComputerCard.reset === 'function') {
+                activeComputerCard.reset();
+            } else {
+                swapComputerCard(window.activeComputerCardId);
+            }
+
+            setTimeout(() => {
+                slot.classList.remove('eject');
+                slot.classList.add('insert');
+                setTimeout(() => slot.classList.remove('insert'), 150);
+            }, 150);
+        }
+    };
+
+    resetBtn.addEventListener('mousedown', (e) => {
+        if (e.button === 0) handleReset(e);
+    });
+    resetBtn.addEventListener('touchstart', handleReset, { passive: false });
+
     container.appendChild(slot);
+    container.appendChild(resetBtn);
+
     if (typeof updateInterfaceScaling === 'function') updateInterfaceScaling();
 }

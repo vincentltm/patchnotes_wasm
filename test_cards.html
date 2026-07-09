@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Workshop Computer — WASM Card Test Suite</title>
+<style>
+:root {
+  --bg:#09090f; --surface:#111118; --border:#1e1e2e;
+  --accent:#7c6fff; --green:#22c55e; --yellow:#eab308;
+  --orange:#f97316; --red:#ef4444; --blue:#3b82f6;
+  --gray:#4b5563; --text:#e2e8f0; --muted:#64748b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',monospace;font-size:13px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+header{padding:18px 28px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+header h1{font-size:18px;font-weight:700;color:#fff;letter-spacing:-0.4px}
+header p{color:var(--muted);margin-top:3px;font-size:11px}
+#controls{display:flex;gap:10px;padding:12px 28px;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0}
+button{background:var(--accent);color:#fff;border:none;padding:7px 16px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;transition:opacity .15s;font-family:inherit}
+button:hover{opacity:.85} button:disabled{opacity:.35;cursor:not-allowed}
+#status-text{color:var(--muted);font-size:11px;margin-left:4px}
+#pb-wrap{height:3px;background:var(--border);flex-shrink:0}
+#pb{height:3px;background:var(--accent);width:0%;transition:width .25s}
+#summary{display:flex;gap:20px;padding:9px 28px;border-bottom:1px solid var(--border);font-size:11px;flex-shrink:0}
+.si{display:flex;align-items:center;gap:5px}
+.sd{width:7px;height:7px;border-radius:50%}
+#main{display:flex;flex:1;overflow:hidden}
+#table-wrap{flex:1;overflow-y:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:7px 10px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:1}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:hover{background:var(--surface)}
+tbody td{padding:6px 10px;vertical-align:middle}
+.c-idx{width:42px;color:var(--muted)}
+.c-num{width:42px;color:var(--muted)}
+.c-id{width:150px;color:#94a3b8}
+.c-name{width:180px;color:#cbd5e1}
+.c-status{width:165px}
+.c-bars{width:180px}
+.c-notes{color:var(--muted);font-size:10px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.03em}
+.b-pending{background:#1e293b;color:var(--muted)}
+.b-running{background:#1e1b4b;color:#818cf8}
+.b-audio  {background:#14532d;color:var(--green)}
+.b-partial{background:#1e3a1e;color:#86efac}
+.b-cv     {background:#1c3557;color:var(--blue)}
+.b-leds   {background:#2d2007;color:var(--yellow)}
+.b-silent {background:#1a1a1a;color:#4b5563}
+.b-crashed{background:#3f0f0f;color:var(--red)}
+.bars{display:flex;flex-direction:column;gap:3px}
+.bar-row{display:flex;align-items:center;gap:5px}
+.bar-label{width:28px;font-size:9px;color:var(--muted);text-align:right}
+.bar-wrap{flex:1;height:5px;background:#1e293b;border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.ba{background:var(--green)} .bc{background:var(--blue)} .bl{background:var(--yellow)}
+#log{width:320px;border-left:1px solid var(--border);overflow-y:auto;padding:8px;font-size:10px;flex-shrink:0}
+.le{padding:1px 0;color:var(--muted)} .le.ok{color:#4ade80} .le.er{color:#f87171} .le.wn{color:#fbbf24}
+</style>
+</head>
+<body>
+<header>
+  <h1>Workshop Computer — WASM Card Test Suite</h1>
+  <p>Tests all 60 cards: 3 scenarios × 1 500 samples. Distinguishes audio · partial (CV+LEDs) · CV only · silent · crashed.</p>
+</header>
+<div id="controls">
+  <button id="btn-run" onclick="runAll()">▶ Run All Tests</button>
+  <button id="btn-export" onclick="exportJSON()" disabled>⬇ Export JSON</button>
+  <span id="status-text">Ready</span>
+</div>
+<div id="pb-wrap"><div id="pb"></div></div>
+<div id="summary">
+  <div class="si"><div class="sd" style="background:var(--green)"></div><span id="s-audio">0 audio</span></div>
+  <div class="si"><div class="sd" style="background:#86efac"></div><span id="s-partial">0 partial</span></div>
+  <div class="si"><div class="sd" style="background:var(--blue)"></div><span id="s-cv">0 cv only</span></div>
+  <div class="si"><div class="sd" style="background:var(--yellow)"></div><span id="s-leds">0 leds only</span></div>
+  <div class="si"><div class="sd" style="background:var(--gray)"></div><span id="s-silent">0 silent</span></div>
+  <div class="si"><div class="sd" style="background:var(--red)"></div><span id="s-crashed">0 crashed</span></div>
+</div>
+<div id="main">
+  <div id="table-wrap">
+    <table>
+      <thead><tr>
+        <th class="c-idx">IDX</th>
+        <th class="c-num">#</th>
+        <th class="c-id">ID</th>
+        <th class="c-name">Name</th>
+        <th class="c-status">Status</th>
+        <th class="c-bars">Signal</th>
+        <th class="c-notes">Notes</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div id="log"></div>
+</div>
+
+<script>
+const CARDS=[
+  {idx:0,id:'midi',num:'00',name:'Simple MIDI'},
+  {idx:1,id:'turing',num:'03',name:'Turing Machine'},
+  {idx:2,id:'benjolin',num:'04',name:'BYO Benjolin'},
+  {idx:3,id:'chord_blimey',num:'05',name:'Chord Blimey!'},
+  {idx:4,id:'usb_audio',num:'06',name:'USB Audio & MIDI'},
+  {idx:5,id:'bumpers',num:'07',name:'Bumpers'},
+  {idx:6,id:'bytebeat',num:'08',name:'Bytebeat'},
+  {idx:7,id:'divcom',num:'09',name:'DivCom'},
+  {idx:8,id:'twists',num:'10',name:'Twists'},
+  {idx:9,id:'goldfish',num:'11',name:'Goldfish'},
+  {idx:10,id:'am_coupler',num:'12',name:'AM Coupler'},
+  {idx:11,id:'noisebox',num:'13',name:'Noisebox'},
+  {idx:12,id:'cvmod',num:'14',name:'CVMod'},
+  {idx:13,id:'mlrws',num:'15',name:'MLRws'},
+  {idx:14,id:'chord_organ',num:'18',name:'Chord Organ-ish'},
+  {idx:15,id:'reverb',num:'20',name:'Reverb+'},
+  {idx:16,id:'resonator',num:'21',name:'Resonator'},
+  {idx:17,id:'sheep',num:'22',name:'Sheep'},
+  {idx:18,id:'slowmod',num:'23',name:'SlowMod'},
+  {idx:19,id:'crafted_volts',num:'24',name:'Crafted Volts'},
+  {idx:20,id:'utility_pair',num:'25',name:'Utility Pair'},
+  {idx:21,id:'siren',num:'27',name:'Siren'},
+  {idx:22,id:'eighties_bass',num:'28',name:'Eighties Bass'},
+  {idx:23,id:'cirpy',num:'30',name:'Cirpy Wavetable'},
+  {idx:24,id:'esp',num:'31',name:'ESP'},
+  {idx:25,id:'vink',num:'32',name:'Vink'},
+  {idx:26,id:'drumdrum',num:'33',name:'drumdrum'},
+  {idx:27,id:'dual_quant',num:'34',name:'DualQuant'},
+  {idx:28,id:'freq_shift',num:'35',name:'FreqShift'},
+  {idx:29,id:'compulidean',num:'37',name:'Compulidean'},
+  {idx:30,id:'od',num:'38',name:'Od (Chaos)'},
+  {idx:31,id:'knots',num:'39',name:'Knots'},
+  {idx:32,id:'blackbird',num:'41',name:'Blackbird'},
+  {idx:33,id:'rain',num:'42',name:'Backyard Rain'},
+  {idx:34,id:'birds',num:'44',name:'Birds'},
+  {idx:35,id:'bends',num:'45',name:'Bends'},
+  {idx:36,id:'rompler',num:'46',name:'Rompler'},
+  {idx:37,id:'nzt',num:'47',name:'NZT'},
+  {idx:38,id:'modes',num:'49',name:'Modes (Elements)'},
+  {idx:39,id:'flux',num:'50',name:'Flux'},
+  {idx:40,id:'grains',num:'51',name:'Grains'},
+  {idx:41,id:'glitter',num:'53',name:'Glitter'},
+  {idx:42,id:'tapegrade',num:'54',name:'Tapegrade'},
+  {idx:43,id:'fifths',num:'55',name:'Fifths'},
+  {idx:44,id:'krell',num:'56',name:'Krell'},
+  {idx:45,id:'glitch',num:'57',name:'Glitch'},
+  {idx:46,id:'lochovibes',num:'58',name:'LoCho Vibes'},
+  {idx:47,id:'bitphase',num:'59',name:'BitPhase'},
+  {idx:48,id:'markov',num:'60',name:'Markov'},
+  {idx:49,id:'voices_of_sid',num:'64',name:'Voices of SID'},
+  {idx:50,id:'stretchcore',num:'66',name:'Stretchcore'},
+  {idx:51,id:'trace',num:'69',name:'Trace'},
+  {idx:52,id:'degenerator',num:'71',name:'Degenerator'},
+  {idx:53,id:'motorik',num:'72',name:'Motorik'},
+  {idx:54,id:'wild_pebble',num:'74',name:'Wild Pebble'},
+  {idx:55,id:'talker',num:'78',name:'Talker'},
+  {idx:56,id:'computer_grids',num:'82',name:'Computer Grids'},
+  {idx:57,id:'tesserae',num:'86',name:'Tesserae'},
+  {idx:58,id:'duo_midi',num:'98',name:'Duo MIDI'},
+  {idx:59,id:'toolbox',num:'99',name:'Toolbox'},
+];
+
+// Thresholds (WASM outputs in volts ±6V range)
+const A_THR = 0.01;  // audio (volts)
+const C_THR = 0.01;  // cv
+const L_THR = 0.01;  // led brightness
+
+const WARMUP  = 480;   // discard first 480 samples
+const N_EACH  = 1500;  // samples per scenario
+
+// 5-tier status
+// audio   → audio output detected
+// partial → cv + leds but no audio (granular processors waiting for input, etc.)
+// cv      → cv output, no audio, no leds
+// leds    → only led activity
+// silent  → nothing
+// crashed → threw exception
+
+let wasmBinary = null;
+let allResults = [];
+const counts = {audio:0,partial:0,cv:0,leds:0,silent:0,crashed:0};
+
+// ── Logging
+function log(msg,cls=''){
+  const el=document.getElementById('log');
+  const d=document.createElement('div');
+  d.className='le '+(cls||'');
+  d.textContent=msg;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+}
+
+// ── Table init
+function buildTable(){
+  const tb=document.getElementById('tbody');
+  tb.innerHTML='';
+  for(const c of CARDS){
+    const tr=document.createElement('tr');
+    tr.id='r'+c.idx;
+    tr.innerHTML=`
+      <td class="c-idx">${c.idx}</td>
+      <td class="c-num">${c.num}</td>
+      <td class="c-id">${c.id}</td>
+      <td class="c-name">${c.name}</td>
+      <td class="c-status"><span class="badge b-pending">— pending</span></td>
+      <td class="c-bars"><span style="color:var(--muted)">—</span></td>
+      <td class="c-notes"></td>`;
+    tb.appendChild(tr);
+  }
+}
+
+function setRunning(c){
+  const tr=document.getElementById('r'+c.idx);
+  tr.querySelector('.c-status').innerHTML=`<span class="badge b-running">⟳ running</span>`;
+}
+
+function updateRow(c,r){
+  const tr=document.getElementById('r'+c.idx);
+  const STATUS={
+    audio:  ['b-audio',  '✅ Audio Out'],
+    partial:['b-partial','⚡ CV + LEDs'],
+    cv:     ['b-cv',     '📊 CV Only'],
+    leds:   ['b-leds',   '💡 LEDs Only'],
+    silent: ['b-silent', '🔇 Silent'],
+    crashed:['b-crashed','❌ Crashed'],
+  };
+  const [cls,label]=STATUS[r.status]||STATUS.silent;
+
+  // Normalize peaks for bar display (÷6 since WASM is in volts)
+  const ap=Math.min(100,(Math.abs(r.audioPeak)/6)*100);
+  const cp=Math.min(100,(Math.abs(r.cvPeak)/6)*100);
+  const lp=Math.min(100,r.ledPeak*100);
+
+  tr.querySelector('.c-status').innerHTML=`<span class="badge ${cls}">${label}</span>`;
+  tr.querySelector('.c-bars').innerHTML=`
+    <div class="bars">
+      <div class="bar-row"><span class="bar-label">aud</span><div class="bar-wrap"><div class="bar-fill ba" style="width:${ap}%"></div></div><span style="font-size:9px;color:var(--muted);margin-left:4px">${r.audioPeak>0.001?r.audioPeak.toFixed(3)+'V':''}</span></div>
+      <div class="bar-row"><span class="bar-label">cv</span><div class="bar-wrap"><div class="bar-fill bc" style="width:${cp}%"></div></div><span style="font-size:9px;color:var(--muted);margin-left:4px">${r.cvPeak>0.001?r.cvPeak.toFixed(3)+'V':''}</span></div>
+      <div class="bar-row"><span class="bar-label">led</span><div class="bar-wrap"><div class="bar-fill bl" style="width:${lp}%"></div></div></div>
+    </div>`;
+  tr.querySelector('.c-notes').textContent=r.notes||'';
+}
+
+function incrCount(s){
+  counts[s]=(counts[s]||0)+1;
+  document.getElementById('s-audio').textContent=counts.audio+' audio';
+  document.getElementById('s-partial').textContent=counts.partial+' partial';
+  document.getElementById('s-cv').textContent=counts.cv+' cv only';
+  document.getElementById('s-leds').textContent=counts.leds+' leds only';
+  document.getElementById('s-silent').textContent=counts.silent+' silent';
+  document.getElementById('s-crashed').textContent=counts.crashed+' crashed';
+}
+
+// ── Load WASM binary once
+async function getWasmBinary(){
+  if(wasmBinary) return wasmBinary;
+  log('Fetching WASM binary…');
+  const r=await fetch('js/cards/wasm/patchnotes_cards.wasm');
+  wasmBinary=await r.arrayBuffer();
+  log(`Loaded ${(wasmBinary.byteLength/1048576).toFixed(2)} MB`,'ok');
+  return wasmBinary;
+}
+
+// ── Fresh module per card (so crashes don't poison subsequent tests)
+async function freshModule(){
+  const bin=await getWasmBinary();
+  return Module({
+    wasmBinary: bin.slice(0),
+    print:()=>{}, printErr:()=>{},
+    locateFile:p=>p,
+  });
+}
+
+// ── Run one sample burst and accumulate peaks
+function runBurst(inst, n, knob, kx, ky, sw, p1, p2, aL, aR, cv1, cv2, state){
+  for(let i=0;i<n;i++){
+    // pulse pattern: 5-sample gate every 96 samples (~500Hz at 48kHz)
+    const pulse = p1 ? ((i%96)<5) : false;
+    inst._set_inputs(knob, kx, ky, sw, pulse, p2, aL, aR, cv1, cv2);
+    inst._process_sample();
+    const o1=inst._get_audio_out1(), o2=inst._get_audio_out2();
+    const c1=inst._get_cv_out1(),    c2=inst._get_cv_out2();
+    state.audioPeak = Math.max(state.audioPeak, Math.abs(o1), Math.abs(o2));
+    state.cvPeak    = Math.max(state.cvPeak,    Math.abs(c1), Math.abs(c2));
+  }
+  for(let j=0;j<6;j++) state.ledPeak=Math.max(state.ledPeak, inst._get_led_brightness(j));
+}
+
+// ── Test one card
+async function testCard(card){
+  const t0=performance.now();
+  let inst;
+  try {
+    inst = await Promise.race([
+      freshModule(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),20000))
+    ]);
+  } catch(e){
+    return {status:'crashed',audioPeak:0,cvPeak:0,ledPeak:0,notes:`load: ${e.message}`};
+  }
+
+  try { inst._init_card(card.idx); }
+  catch(e){ return {status:'crashed',audioPeak:0,cvPeak:0,ledPeak:0,notes:`init: ${e.message||e}`}; }
+
+  // Mark all jacks connected
+  try { inst._set_input_connected(true,true,true,true,true,true); } catch(e){}
+
+  const state={audioPeak:0,cvPeak:0,ledPeak:0};
+  const notes=[];
+
+  try {
+    // Warmup — silent, all inputs off
+    runBurst(inst,WARMUP, 0.5,0.5,0.5,1,false,false,0,0,0,0,{audioPeak:0,cvPeak:0,ledPeak:0});
+
+    // Scenario A: autonomous generation (mid-knobs, no inputs)
+    runBurst(inst,N_EACH, 0.5,0.5,0.5,1,false,false,0,0,0,0,state);
+
+    // Scenario B: with pulsing trigger + 1V CV pitch in
+    runBurst(inst,N_EACH, 0.5,0.5,0.5,1,true,false, 0,0, 1.0,0, state);
+    // (1V = middle C-ish at 1V/oct)
+
+    // Scenario C: audio passthrough — loud audio input, gate high, mid CV
+    // This exercises cards like Sheep, Reverb, Tapegrade, etc.
+    const LOUD=4.0; // 4V ≈ 0.67 normalized
+    runBurst(inst,N_EACH, 0.5,0.5,0.5,1,true,false, LOUD,LOUD, 0,0, state);
+
+  } catch(e){
+    const m=String(e.message||e);
+    if(m.includes('abort')||m.includes('unreachable')||m.includes('RuntimeError')){
+      return {status:'crashed',audioPeak:state.audioPeak,cvPeak:state.cvPeak,ledPeak:state.ledPeak,
+              notes:`WASM abort at ${Math.round(performance.now()-t0)}ms`};
+    }
+    notes.push(m.slice(0,50));
+  }
+
+  const elapsed=Math.round(performance.now()-t0);
+  notes.push(`${elapsed}ms`);
+
+  const hasAudio = state.audioPeak > A_THR;
+  const hasCV    = state.cvPeak    > C_THR;
+  const hasLEDs  = state.ledPeak   > L_THR;
+
+  let status;
+  if      (hasAudio)              status='audio';
+  else if (hasCV && hasLEDs)      status='partial';
+  else if (hasCV)                 status='cv';
+  else if (hasLEDs)               status='leds';
+  else                            status='silent';
+
+  return {status, audioPeak:state.audioPeak, cvPeak:state.cvPeak, ledPeak:state.ledPeak, notes:notes.join(' · ')};
+}
+
+// ── Run all
+async function runAll(){
+  document.getElementById('btn-run').disabled=true;
+  document.getElementById('btn-export').disabled=true;
+  Object.keys(counts).forEach(k=>counts[k]=0);
+  allResults=[];
+  buildTable();
+
+  await getWasmBinary().catch(e=>{
+    log(`Fatal: ${e.message}`,'er');
+    document.getElementById('btn-run').disabled=false;
+    return;
+  });
+
+  const total=CARDS.length;
+  log(`Starting ${total} card tests (3 scenarios × ${N_EACH} samples each)…`,'ok');
+
+  for(let i=0;i<total;i++){
+    const card=CARDS[i];
+    setRunning(card);
+    document.getElementById('status-text').textContent=
+      `[${i+1}/${total}] ${card.name}…`;
+    document.getElementById('pb').style.width=`${(i/total)*100}%`;
+    await new Promise(r=>setTimeout(r,0)); // yield to browser
+
+    const result=await testCard(card);
+    result.card=card;
+    allResults.push(result);
+    updateRow(card,result);
+    incrCount(result.status);
+
+    const ico={audio:'✅',partial:'⚡',cv:'📊',leds:'💡',silent:'🔇',crashed:'❌'}[result.status]||'?';
+    const cls=result.status==='crashed'?'er':result.status==='audio'||result.status==='partial'?'ok':'wn';
+    log(`${ico} [${card.idx}] ${card.name} → ${result.status} | a=${result.audioPeak.toFixed(3)}V cv=${result.cvPeak.toFixed(3)}V led=${result.ledPeak.toFixed(2)}`,cls);
+  }
+
+  document.getElementById('pb').style.width='100%';
+  const t=counts;
+  document.getElementById('status-text').textContent=
+    `Done — ${t.audio} audio · ${t.partial} partial · ${t.cv} cv · ${t.leds} leds · ${t.silent} silent · ${t.crashed} crashed`;
+  document.getElementById('btn-run').disabled=false;
+  document.getElementById('btn-export').disabled=false;
+  log('Complete.','ok');
+}
+
+function exportJSON(){
+  const data=allResults.map(r=>({
+    idx:r.card.idx,id:r.card.id,name:r.card.name,num:r.card.num,
+    status:r.status,audioPeak:r.audioPeak,cvPeak:r.cvPeak,ledPeak:r.ledPeak,notes:r.notes
+  }));
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`wasm_test_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+buildTable();
+log('Ready. Click "Run All Tests" to begin.');
+</script>
+<script src="js/cards/wasm/patchnotes_cards.js"></script>
+</body>
+</html>

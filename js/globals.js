@@ -568,7 +568,11 @@ function getModuleIndexByJack(jackId) {
 // Initialize registry with the full static library
 // If CARD_LIBRARY isn't loaded yet, default to empty array
 window.AVAILABLE_CARDS = (typeof window.CARD_LIBRARY !== 'undefined')
-    ? JSON.parse(JSON.stringify(window.CARD_LIBRARY)) // Deep copy
+    ? JSON.parse(JSON.stringify(window.CARD_LIBRARY)).filter(c => {
+        if (c.id === 'none') return true;
+        const num = parseInt(c.num);
+        return isNaN(num) || num <= 99;
+      })
     : [];
 
 // Define the registration function
@@ -579,6 +583,10 @@ window.registerCard = function (cardClass) {
     }
 
     const id = cardClass.meta.id;
+    const num = parseInt(cardClass.meta.num);
+    if (!isNaN(num) && num > 99) {
+        return; // Skip registering cards over 99
+    }
 
     // Find the existing entry in our library
     const existingIndex = window.AVAILABLE_CARDS.findIndex(c => c.id === id);

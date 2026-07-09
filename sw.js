@@ -1,4 +1,4 @@
-const CACHE_NAME = 'patchnotes-v29';
+const CACHE_NAME = 'patchnotes-v47_fix9';
 const ASSETS_TO_CACHE = [
     'patchnotes.html',
     'style.css',
@@ -32,20 +32,18 @@ const ASSETS_TO_CACHE = [
 
     // Cards
     'js/cards/CardCV.js',
-    'js/cards/CardChord.js',
     'js/cards/CardDefinitions.js',
     'js/cards/CardDrumLoop.js',
     'js/cards/CardDualDelay.js',
     'js/cards/CardEuclidean.js',
-    'js/cards/CardMIDI.js',
     'js/cards/CardNoOp.js',
-    'js/cards/CardReverb.js',
-    'js/cards/CardTuring.js',
-    'js/cards/CardTwists.js',
-    'js/cards/CardUtilityPair.js',
     'js/cards/CardVCA.js',
     'js/cards/ComputerCard.js',
-    'js/cards/UtilityPairDefinitions.js'
+    'js/cards/UtilityPairDefinitions.js',
+    'js/cards/CardUSBAudio.js',
+    'js/cards/WasmCardWrapper.js',
+    'js/cards/wasm/patchnotes_cards.js',
+    'js/cards/wasm/patchnotes_cards.wasm'
 ];
 
 self.addEventListener('message', (event) => {
@@ -61,6 +59,7 @@ self.addEventListener('install', (event) => {
                 console.log('[Service Worker] Caching all assets');
                 return cache.addAll(ASSETS_TO_CACHE);
             })
+            .then(() => self.skipWaiting())
     );
 });
 

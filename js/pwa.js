@@ -91,8 +91,13 @@ if ('serviceWorker' in navigator) {
 
     // Detect controller change (when new SW takes over)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        console.log('[PWA] Controller changed, reloading page...');
-        window.location.reload();
+        if (sessionStorage.getItem('pwa_update_initiated') === 'true') {
+            sessionStorage.removeItem('pwa_update_initiated');
+            console.log('[PWA] Controller changed, reloading page...');
+            window.location.reload();
+        } else {
+            console.log('[PWA] Controller changed silently, skipping auto-reload to protect user patch.');
+        }
     });
 }
 
@@ -141,6 +146,8 @@ function installPWA() {
 
 function applyUpdate() {
     if (!navigator.serviceWorker) return;
+
+    sessionStorage.setItem('pwa_update_initiated', 'true');
 
     navigator.serviceWorker.getRegistration().then(reg => {
         if (reg && reg.waiting) {

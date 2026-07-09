@@ -32,7 +32,8 @@ function runClockLoop() {
             x: getNorm('knob-small-x'),
             y: getNorm('knob-small-y'),
             main: getNorm('knob-large-computer'),
-            switch: componentStates['switch-3way-computer']?.value || 0
+            // Switch: UI state 0=Up, 1=Mid, 2=Down. C++ g_switch: 0=Down, 1=Mid, 2=Up. Invert.
+            switch: 2 - (componentStates['switch-3way-computer']?.value ?? 1)
         };
 
         activeComputerCard.update(params, now);

@@ -1,0 +1,556 @@
+{
+  "sampleRate": 44100,
+  "channels": 1,
+  "groups": {
+    "scratch_near": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "scratch_near_0.ogg",
+          "samples": 22573,
+          "duration": 0.511859410430839
+        },
+        {
+          "index": 1,
+          "file": "scratch_near_1.ogg",
+          "samples": 31481,
+          "duration": 0.7138548752834467
+        },
+        {
+          "index": 2,
+          "file": "scratch_near_2.ogg",
+          "samples": 21372,
+          "duration": 0.48462585034013606
+        },
+        {
+          "index": 3,
+          "file": "scratch_near_3.ogg",
+          "samples": 26659,
+          "duration": 0.6045124716553288
+        },
+        {
+          "index": 4,
+          "file": "scratch_near_4.ogg",
+          "samples": 9884,
+          "duration": 0.22412698412698412
+        }
+      ]
+    },
+    "scratch_near_loop": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "scratch_near_loop_0.ogg",
+          "samples": 442336,
+          "duration": 10.0302947845805
+        }
+      ]
+    },
+    "scratch_mid": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "scratch_mid_0.ogg",
+          "samples": 38766,
+          "duration": 0.8790476190476191
+        },
+        {
+          "index": 1,
+          "file": "scratch_mid_1.ogg",
+          "samples": 8111,
+          "duration": 0.18392290249433108
+        },
+        {
+          "index": 2,
+          "file": "scratch_mid_2.ogg",
+          "samples": 3820,
+          "duration": 0.08662131519274377
+        },
+        {
+          "index": 3,
+          "file": "scratch_mid_3.ogg",
+          "samples": 40471,
+          "duration": 0.9177097505668934
+        },
+        {
+          "index": 4,
+          "file": "scratch_mid_4.ogg",
+          "samples": 32094,
+          "duration": 0.7277551020408163
+        }
+      ]
+    },
+    "scratch_mid_loop": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "scratch_mid_loop_0.ogg",
+          "samples": 441221,
+          "duration": 10.005011337868481
+        }
+      ]
+    },
+    "scratch_far": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "scratch_far_0.ogg",
+          "samples": 8037,
+          "duration": 0.18224489795918367
+        },
+        {
+          "index": 1,
+          "file": "scratch_far_1.ogg",
+          "samples": 1388,
+          "duration": 0.03147392290249433
+        },
+        {
+          "index": 2,
+          "file": "scratch_far_2.ogg",
+          "samples": 17325,
+          "duration": 0.39285714285714285
+        },
+        {
+          "index": 3,
+          "file": "scratch_far_3.ogg",
+          "samples": 40277,
+          "duration": 0.9133106575963719
+        },
+        {
+          "index": 4,
+          "file": "scratch_far_4.ogg",
+          "samples": 25718,
+          "duration": 0.5831746031746031
+        }
+      ]
+    },
+    "scratch_grating": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "scratch_grating_0.ogg",
+          "samples": 20697,
+          "duration": 0.46931972789115645
+        },
+        {
+          "index": 1,
+          "file": "scratch_grating_1.ogg",
+          "samples": 40216,
+          "duration": 0.9119274376417233
+        },
+        {
+          "index": 2,
+          "file": "scratch_grating_2.ogg",
+          "samples": 27090,
+          "duration": 0.6142857142857143
+        },
+        {
+          "index": 3,
+          "file": "scratch_grating_3.ogg",
+          "samples": 45056,
+          "duration": 1.0216780045351475
+        },
+        {
+          "index": 4,
+          "file": "scratch_grating_4.ogg",
+          "samples": 43564,
+          "duration": 0.9878458049886621
+        }
+      ]
+    },
+    "scratch_grating_loop": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "scratch_grating_loop_0.ogg",
+          "samples": 441216,
+          "duration": 10.004897959183673
+        }
+      ]
+    },
+    "tap_near": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "tap_near_0.ogg",
+          "samples": 2616,
+          "duration": 0.059319727891156464
+        },
+        {
+          "index": 1,
+          "file": "tap_near_1.ogg",
+          "samples": 7107,
+          "duration": 0.16115646258503402
+        },
+        {
+          "index": 2,
+          "file": "tap_near_2.ogg",
+          "samples": 2329,
+          "duration": 0.05281179138321995
+        },
+        {
+          "index": 3,
+          "file": "tap_near_3.ogg",
+          "samples": 15149,
+          "duration": 0.3435147392290249
+        },
+        {
+          "index": 4,
+          "file": "tap_near_4.ogg",
+          "samples": 41894,
+          "duration": 0.9499773242630386
+        }
+      ]
+    },
+    "tap_mid": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "tap_mid_0.ogg",
+          "samples": 2280,
+          "duration": 0.05170068027210884
+        },
+        {
+          "index": 1,
+          "file": "tap_mid_1.ogg",
+          "samples": 2472,
+          "duration": 0.05605442176870748
+        },
+        {
+          "index": 2,
+          "file": "tap_mid_2.ogg",
+          "samples": 2516,
+          "duration": 0.05705215419501134
+        },
+        {
+          "index": 3,
+          "file": "tap_mid_3.ogg",
+          "samples": 2172,
+          "duration": 0.04925170068027211
+        },
+        {
+          "index": 4,
+          "file": "tap_mid_4.ogg",
+          "samples": 2001,
+          "duration": 0.045374149659863944
+        }
+      ]
+    },
+    "tap_far": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "tap_far_0.ogg",
+          "samples": 22945,
+          "duration": 0.5202947845804988
+        },
+        {
+          "index": 1,
+          "file": "tap_far_1.ogg",
+          "samples": 2257,
+          "duration": 0.051179138321995464
+        },
+        {
+          "index": 2,
+          "file": "tap_far_2.ogg",
+          "samples": 2045,
+          "duration": 0.0463718820861678
+        },
+        {
+          "index": 3,
+          "file": "tap_far_3.ogg",
+          "samples": 42431,
+          "duration": 0.9621541950113379
+        },
+        {
+          "index": 4,
+          "file": "tap_far_4.ogg",
+          "samples": 1704,
+          "duration": 0.038639455782312926
+        }
+      ]
+    },
+    "bump_chassis": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "bump_chassis_0.ogg",
+          "samples": 6949,
+          "duration": 0.1575736961451247
+        },
+        {
+          "index": 1,
+          "file": "bump_chassis_1.ogg",
+          "samples": 12909,
+          "duration": 0.29272108843537414
+        },
+        {
+          "index": 2,
+          "file": "bump_chassis_2.ogg",
+          "samples": 14520,
+          "duration": 0.3292517006802721
+        },
+        {
+          "index": 3,
+          "file": "bump_chassis_3.ogg",
+          "samples": 15550,
+          "duration": 0.3526077097505669
+        },
+        {
+          "index": 4,
+          "file": "bump_chassis_4.ogg",
+          "samples": 10929,
+          "duration": 0.2478231292517007
+        }
+      ]
+    },
+    "rotate_knob": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "rotate_knob_0.ogg",
+          "samples": 26427,
+          "duration": 0.5992517006802721
+        },
+        {
+          "index": 1,
+          "file": "rotate_knob_1.ogg",
+          "samples": 15356,
+          "duration": 0.34820861678004533
+        },
+        {
+          "index": 2,
+          "file": "rotate_knob_2.ogg",
+          "samples": 44542,
+          "duration": 1.0100226757369615
+        },
+        {
+          "index": 3,
+          "file": "rotate_knob_3.ogg",
+          "samples": 44445,
+          "duration": 1.0078231292517006
+        },
+        {
+          "index": 4,
+          "file": "rotate_knob_4.ogg",
+          "samples": 43708,
+          "duration": 0.9911111111111112
+        }
+      ]
+    },
+    "rotate_knob_loop": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "rotate_knob_loop_0.ogg",
+          "samples": 441821,
+          "duration": 10.01861678004535
+        }
+      ]
+    },
+    "latch_switch": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "latch_switch_0.ogg",
+          "samples": 2481,
+          "duration": 0.05625850340136054
+        },
+        {
+          "index": 1,
+          "file": "latch_switch_1.ogg",
+          "samples": 2057,
+          "duration": 0.04664399092970522
+        },
+        {
+          "index": 2,
+          "file": "latch_switch_2.ogg",
+          "samples": 31595,
+          "duration": 0.7164399092970521
+        },
+        {
+          "index": 3,
+          "file": "latch_switch_3.ogg",
+          "samples": 3345,
+          "duration": 0.07585034013605442
+        },
+        {
+          "index": 4,
+          "file": "latch_switch_4.ogg",
+          "samples": 2062,
+          "duration": 0.04675736961451247
+        }
+      ]
+    },
+    "mom_switch_down": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "mom_switch_down_0.ogg",
+          "samples": 1899,
+          "duration": 0.04306122448979592
+        },
+        {
+          "index": 1,
+          "file": "mom_switch_down_1.ogg",
+          "samples": 1907,
+          "duration": 0.04324263038548753
+        },
+        {
+          "index": 2,
+          "file": "mom_switch_down_2.ogg",
+          "samples": 1904,
+          "duration": 0.04317460317460318
+        },
+        {
+          "index": 3,
+          "file": "mom_switch_down_3.ogg",
+          "samples": 1916,
+          "duration": 0.04344671201814059
+        },
+        {
+          "index": 4,
+          "file": "mom_switch_down_4.ogg",
+          "samples": 1757,
+          "duration": 0.039841269841269844
+        }
+      ]
+    },
+    "mom_switch_snap": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "mom_switch_snap_0.ogg",
+          "samples": 1552,
+          "duration": 0.035192743764172335
+        },
+        {
+          "index": 1,
+          "file": "mom_switch_snap_1.ogg",
+          "samples": 3346,
+          "duration": 0.07587301587301587
+        },
+        {
+          "index": 2,
+          "file": "mom_switch_snap_2.ogg",
+          "samples": 3926,
+          "duration": 0.08902494331065759
+        },
+        {
+          "index": 3,
+          "file": "mom_switch_snap_3.ogg",
+          "samples": 3400,
+          "duration": 0.07709750566893424
+        },
+        {
+          "index": 4,
+          "file": "mom_switch_snap_4.ogg",
+          "samples": 2276,
+          "duration": 0.05160997732426304
+        }
+      ]
+    },
+    "press_button": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "press_button_0.ogg",
+          "samples": 26939,
+          "duration": 0.6108616780045352
+        },
+        {
+          "index": 1,
+          "file": "press_button_1.ogg",
+          "samples": 3542,
+          "duration": 0.08031746031746032
+        },
+        {
+          "index": 2,
+          "file": "press_button_2.ogg",
+          "samples": 2223,
+          "duration": 0.05040816326530612
+        },
+        {
+          "index": 3,
+          "file": "press_button_3.ogg",
+          "samples": 2718,
+          "duration": 0.061632653061224486
+        },
+        {
+          "index": 4,
+          "file": "press_button_4.ogg",
+          "samples": 3102,
+          "duration": 0.07034013605442177
+        }
+      ]
+    },
+    "plug_jack_in": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "plug_jack_in_0.ogg",
+          "samples": 5588,
+          "duration": 0.12671201814058958
+        },
+        {
+          "index": 1,
+          "file": "plug_jack_in_1.ogg",
+          "samples": 7556,
+          "duration": 0.17133786848072563
+        },
+        {
+          "index": 2,
+          "file": "plug_jack_in_2.ogg",
+          "samples": 3310,
+          "duration": 0.07505668934240363
+        },
+        {
+          "index": 3,
+          "file": "plug_jack_in_3.ogg",
+          "samples": 6748,
+          "duration": 0.15301587301587302
+        },
+        {
+          "index": 4,
+          "file": "plug_jack_in_4.ogg",
+          "samples": 13156,
+          "duration": 0.2983219954648526
+        }
+      ]
+    },
+    "plug_jack_out": {
+      "variants": [
+        {
+          "index": 0,
+          "file": "plug_jack_out_0.ogg",
+          "samples": 3860,
+          "duration": 0.08752834467120181
+        },
+        {
+          "index": 1,
+          "file": "plug_jack_out_1.ogg",
+          "samples": 35106,
+          "duration": 0.7960544217687074
+        },
+        {
+          "index": 2,
+          "file": "plug_jack_out_2.ogg",
+          "samples": 26227,
+          "duration": 0.5947165532879819
+        },
+        {
+          "index": 3,
+          "file": "plug_jack_out_3.ogg",
+          "samples": 23212,
+          "duration": 0.5263492063492063
+        },
+        {
+          "index": 4,
+          "file": "plug_jack_out_4.ogg",
+          "samples": 42108,
+          "duration": 0.9548299319727891
+        }
+      ]
+    }
+  }
+}

@@ -44,10 +44,11 @@
     --board-shadow-color: rgba(0, 0, 0, 0.0);
 
     /* Computer Cards */
-    --card-bg: #ffffff;
-    --card-border: #000000;
-    --card-text: #000000;
-    --card-gradient: none;
+    --card-bg: #006a52;
+    --card-border: rgba(227, 214, 158, 0.4);
+    --card-text: #e3d69e;
+    --card-gradient: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.15) 0%, transparent 60%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.25) 100%);
 
     /* Notes & Misc */
     --note-color: #000000;
@@ -133,11 +134,11 @@ body.dark-mode {
     --board-bg: #27272a;
     --board-border: #3f3f46;
 
-    --card-bg: #044733;
-    --card-border: rgba(255, 255, 255, 0.15);
-    --card-text: #fbbf24;
-    --card-gradient: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.1) 0%, transparent 60%),
-    linear-gradient(to bottom, transparent 90%, rgba(0, 0, 0, 0.2) 100%);
+    --card-bg: #006a52;
+    --card-border: rgba(227, 214, 158, 0.4);
+    --card-text: #e3d69e;
+    --card-gradient: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.15) 0%, transparent 60%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.25) 100%);
 
     --note-color: #ffffff;
     --note-shadow: rgba(255, 255, 255, 0.1);
@@ -656,6 +657,7 @@ textarea#globalNotesArea {
     -webkit-user-select: none;
     user-select: none;
     pointer-events: auto !important;
+    overflow: visible !important; /* Safety: prevent clipping of tooltips */
 }
 
 .component:hover {
@@ -666,21 +668,26 @@ textarea#globalNotesArea {
     position: absolute;
     left: 50%;
     top: 0;
-    transform: translate(-50%, -120%);
-    background-color: #333;
-    color: #fff;
-    padding: 4px 8px;
-    border-radius: 3px;
+    transform: translate(-50%, -130%);
+    background-color: rgba(20, 20, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #f3f4f6;
+    padding: 5px 10px;
+    border-radius: 4px;
     font-size: 0.75rem;
+    font-weight: 500;
+    font-family: 'Roboto Mono', monospace;
     white-space: nowrap;
     z-index: 1000;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.15s ease-in-out;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
 }
 
 .component:hover .tooltip {
     opacity: 1;
+    transform: translate(-50%, -145%);
 }
 
 /* --- JACKS (Must be Top Layer) --- */
@@ -871,134 +878,54 @@ body.dark-mode .knob-range-path {
 
 
 
+/* ── VCV-style SVG switches ─────────────────────────────────────────────── */
 .switch-2way,
 .switch-3way {
-    width: 1.2%;
-    height: 0;
     background: transparent;
     border: none;
-    border-radius: 2px;
-}
-
-.switch-2way {
-    padding-bottom: 2.5%;
-}
-
-.switch-3way {
-    padding-bottom: 3.75%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    width: 4.0%;
+    padding-bottom: 4.67%;
+    height: 0;
 }
 
 #switch-2way-amp {
     transform: translate(-50%, -50%) rotate(-90deg);
 }
 
-.switch-handle {
+/* SVG image fills the component */
+.switch-vcv-img {
     position: absolute;
+    top: 0;
     left: 0;
     width: 100%;
-    height: 25%;
-    background: var(--switch-bg);
-    opacity: 0.8;
-    /* Increased for visibility */
-    transition: top 0.1s ease-out, background 0.1s, opacity 0.3s;
+    height: 100%;
+    object-fit: contain;
     pointer-events: none;
-    border: 1px solid var(--switch-border);
-    border-radius: 4px;
-    /* Slight rounding */
-    z-index: 2;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    user-select: none;
+    transition: filter 0.08s ease;
+    image-rendering: crisp-edges;
 }
 
-.is-touched .switch-handle {
-    background: var(--switch-handle);
-    opacity: 1.0 !important;
+/* Slight highlight when recently touched */
+.is-touched .switch-vcv-img {
+    filter: brightness(1.15);
 }
 
-.switch-2way .switch-handle {
-    height: 40%;
+/* Down state: dim slightly to feel pressed */
+.switch-2way[data-state="1"] .switch-vcv-img,
+.switch-3way[data-state="2"] .switch-vcv-img {
+    filter: brightness(0.92);
 }
 
-/* --- Stem Logic (Dark Mode Only) --- */
-.switch-2way::after,
-.switch-3way::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 8ifpx;
-    /* Wider */
-    background: #333;
-    transform: translateX(-50%);
-    /* Pivot from center horizontally */
-    z-index: 1;
-    transition: height 0.1s, transform 0.1s;
-    display: none;
-    /* Hidden in light mode */
-    border-radius: 2px;
+/* Hide the old handle if any legacy element still exists */
+.switch-handle {
+    display: none !important;
 }
 
-body.dark-mode .switch-2way::after,
-body.dark-mode .switch-3way::after {
-    display: block;
-}
-
-/* 2-Way States */
-/* Top State: Stem grows Up from Center */
-.switch-2way[data-state="0"] .switch-handle {
-    top: 0%;
-}
-
-.switch-2way[data-state="0"]::after {
-    height: 30%;
-    transform: translate(-50%, -100%);
-    /* Move up by its height */
-}
-
-/* Bottom State: Stem grows Down from Center */
-.switch-2way[data-state="1"] .switch-handle {
-    top: 60%;
-}
-
-.switch-2way[data-state="1"]::after {
-    height: 30%;
-    transform: translate(-50%, 0);
-}
-
-.switch-3way .switch-handle {
-    height: 25%;
-}
-
-/* 3-Way States */
-/* Top */
-.switch-3way[data-state="0"] .switch-handle {
-    top: 0%;
-}
-
-.switch-3way[data-state="0"]::after {
-    height: 38%;
-    transform: translate(-50%, -95%);
-    /* Slightly tucked */
-}
-
-/* Middle */
-.switch-3way[data-state="1"] .switch-handle {
-    top: 40%;
-}
-
-.switch-3way[data-state="1"]::after {
-    height: 0;
-    /* Hidden/Dot */
-}
-
-/* Bottom */
-.switch-3way[data-state="2"] .switch-handle {
-    top: 80%;
-}
-
-.switch-3way[data-state="2"]::after {
-    height: 38%;
-    transform: translate(-50%, -5%);
-}
 
 .button {
     width: 4.25%;
@@ -1241,69 +1168,99 @@ body.performance-mode .cable-svg path {
 .program-card {
     width: 90%;
     height: auto !important;
-    aspect-ratio: 1;
+    aspect-ratio: 32 / 54;
     position: absolute;
-    bottom: 80%;
+    top: 0;
     left: 5%;
-    transform: translateY(5%);
-    background-color: var(--card-bg) !important;
-    background-image: var(--card-gradient) !important;
-    border: 1px solid var(--card-border);
-    border-radius: 4px;
-    box-shadow: 0 -3px 6px rgba(0, 0, 0, 0.5);
+    transform: translateY(-78%) translateZ(0);
+    background-color: transparent !important;
+    background-image: none;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    border: none !important;
+    border-radius: 0;
     pointer-events: auto !important;
     transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform-origin: bottom center;
+    clip-path: none !important;
+    container-type: inline-size;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
-body.dark-mode .program-card {
-    clip-path: polygon(4% 0%, 96% 0%, 100% 4%, 100% 25%, 94% 28%, 94% 38%, 100% 41%, 100% 100%, 0% 100%, 0% 4%) !important;
-}
-
-.card-label,
-.card-decoration,
+/* Card Text Elements - Blank Card */
+.card-label-container,
 .card-digits {
-    font-family: "Arial Narrow", "Helvetica Condensed", sans-serif;
-    color: var(--card-text) !important;
-    text-transform: capitalize;
-    font-weight: bold;
-    letter-spacing: 0.02em;
-    position: absolute;
     pointer-events: none;
     line-height: 1;
     text-shadow: none;
+    position: absolute;
 }
 
-.card-label {
-    top: 8%;
-    left: 8%;
-    width: 85%;
-    font-size: 0.35em;
-    text-align: left;
-    max-height: 40%;
+/* Symmetrical Vertical Word Layout (rotated 90deg) */
+.card-label-container {
+    top: 5%;
+    left: 0;
+    width: 100%;
+    height: 90%;
 }
 
-.card-decoration {
-    bottom: 10%;
-    left: 8%;
-    font-size: 0.15em;
-    opacity: 0.9;
+.card-word {
+    font-family: "Arial Narrow", "Helvetica Condensed", sans-serif;
+    font-weight: bold;
+    color: var(--card-text) !important;
+    text-transform: uppercase;
+    white-space: nowrap;
+    position: absolute;
+    top: 52.78%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+    font-size: 34.375cqw; /* Fallback: Relative to card width */
+    letter-spacing: 0.02em;
+    opacity: 0.95;
 }
 
+/* Word Columns mapping exactly to VCV coordinate percentages */
+.card-label-container.words-1 .card-word-0 {
+    left: 56.875%;
+}
+.card-label-container.words-2 .card-word-0 {
+    left: 70.9375%;
+}
+.card-label-container.words-2 .card-word-1 {
+    left: 42.8125%;
+}
+
+/* Digits at Top-Left */
 .card-digits {
-    bottom: 8%;
-    right: 10%;
+    top: 6.48%;
+    left: 7.81%;
     font-family: "Courier New", monospace;
-    font-size: 0.4em;
-    opacity: 0.9;
+    font-size: 28.125cqw; /* Relative to card width */
+    font-weight: bold;
+    color: var(--card-text) !important;
+    opacity: 0.85;
+}
+
+/* Hide Decoration (logo) to match VCV blank card */
+.card-decoration {
+    display: none !important;
+}
+
+/* Hide HTML text overlays on prebaked card SVGs (Turing, Reverb, MIDI already have them drawn) */
+.program-card.svg-prebaked .card-label-container,
+.program-card.svg-prebaked .card-digits,
+.program-card.svg-prebaked .card-decoration {
+    display: none !important;
 }
 
 .card-slot-container.insert .program-card {
-    transform: translateY(2%);
+    transform: translateY(-45%) translateZ(0) !important;
 }
 
 .card-slot-container.eject .program-card {
-    transform: translateY(-30%);
+    transform: translateY(-110%) translateZ(0) !important;
 }
 
 .card-tooltip {
@@ -1330,6 +1287,34 @@ body.dark-mode .program-card {
     opacity: 1;
     transform: translateX(5px);
 }
+
+/* Physical Reset Button next to Card Slot */
+.computer-reset-btn {
+    position: absolute;
+    left: 16.2%;
+    top: 89.7%;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 60;
+    border: 1px solid transparent;
+    transition: background-color 0.1s, box-shadow 0.1s, border-color 0.1s;
+    background-color: rgba(255, 255, 255, 0);
+}
+
+.computer-reset-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.1);
+}
+
+.computer-reset-btn:active {
+    background-color: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 
+        inset 0 0 8px rgba(239, 68, 68, 0.6),
+        0 0 12px rgba(239, 68, 68, 0.7);
+}
+
 
 /* Card Selector Modal - RESTORED */
 #cardSelectorModal {
@@ -2675,11 +2660,17 @@ body.dark-mode .toolbar-btn.btn-active {
     color: var(--window-close-hover);
 }
 
-.card-lib-btn {
+.card-btn-container {
     position: absolute;
     bottom: -25px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 101;
+}
+
+.card-lib-btn {
     background: #1a1a1a;
     color: #4ade80;
     font-size: 8px;
@@ -2688,7 +2679,6 @@ body.dark-mode .toolbar-btn.btn-active {
     border-radius: 4px;
     border: 1px solid #444;
     cursor: pointer;
-    z-index: 101;
     white-space: nowrap;
     opacity: 0.8;
     transition: all 0.2s;
@@ -2867,7 +2857,6 @@ body.patch-focus-mode .component.switch-3way,
 body.patch-focus-mode .component.button,
 body.patch-focus-mode .component.led,
 body.patch-focus-mode .note-element,
-body.patch-focus-mode .program-card,
 body.patch-focus-mode .pedal {
     opacity: 1.0 !important;
     /* Optional: Slight pop */
@@ -3062,7 +3051,6 @@ body.patch-focus-mode .component.switch-3way,
 body.patch-focus-mode .component.button,
 body.patch-focus-mode .component.led,
 body.patch-focus-mode .note-element,
-body.patch-focus-mode .program-card,
 body.patch-focus-mode .pedal {
     opacity: 1.0 !important;
     /* Optional: Slight pop */
@@ -3228,3 +3216,31 @@ body.declutter-mode .cable-svg path {
     border-bottom-right-radius: 0 !important;
     border-right-width: 0 !important;
 }
+
+/* Modal and Terminal Custom Styles */
+.card-editor-modal {
+    max-width: 1200px !important;
+    width: 95% !important;
+    height: 90% !important;
+}
+
+.card-editor-modal .modal-body {
+    flex: 1;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    border-radius: 0 0 8px 8px;
+}
+
+.card-editor-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #f3f1ea;
+}
+
+/* Preload SVG card graphics to prevent layout thrashing and network latency on card swap */
+body::after {
+    content: url('images/card_blank.svg') url('images/card_turing.svg') url('images/card_reverb.svg') url('images/card_midi.svg');
+    display: none;
+}
