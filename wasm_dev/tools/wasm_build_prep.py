@@ -1018,6 +1018,97 @@ BlackbirdCrow crow;
 #endif"""
                     content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
 
+    # ── COSMIK C1ZZL3 ──
+    elif filename == "Card_cosmik_c1zzl3.cpp":
+        idx = content.find("void usbMidiWorker()")
+        if idx != -1:
+            while_idx = content.find("while (true)", idx)
+            if while_idx != -1:
+                brace_pos = content.find("{", while_idx)
+                if brace_pos != -1:
+                    brace_count = 1
+                    curr_pos = brace_pos + 1
+                    while brace_count > 0 and curr_pos < len(content):
+                        if content[curr_pos] == '{':
+                            brace_count += 1
+                        elif content[curr_pos] == '}':
+                            brace_count -= 1
+                        curr_pos += 1
+                    closing_brace_idx = curr_pos - 1
+                    loop_body = content[brace_pos+1 : closing_brace_idx]
+                    
+                    replacement = f"""#ifdef __EMSCRIPTEN__
+    g_wasm_core1_tick = [=]() mutable {{
+        {loop_body}
+    }};
+#else
+    while (true) {{
+        {loop_body}
+    }}
+#endif"""
+                    content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
+
+    # ── FR330HFR33 ──
+    elif filename == "Card_fr330hfr33.cpp":
+        idx = content.find("void controlWorker()")
+        if idx != -1:
+            while_idx = content.find("while (true)", idx)
+            if while_idx != -1:
+                brace_pos = content.find("{", while_idx)
+                if brace_pos != -1:
+                    brace_count = 1
+                    curr_pos = brace_pos + 1
+                    while brace_count > 0 and curr_pos < len(content):
+                        if content[curr_pos] == '{':
+                            brace_count += 1
+                        elif content[curr_pos] == '}':
+                            brace_count -= 1
+                        curr_pos += 1
+                    closing_brace_idx = curr_pos - 1
+                    loop_body = content[brace_pos+1 : closing_brace_idx]
+                    
+                    replacement = f"""#ifdef __EMSCRIPTEN__
+    g_wasm_core1_tick = [=]() mutable {{
+        {loop_body}
+    }};
+#else
+    while (true) {{
+        {loop_body}
+    }}
+#endif"""
+                    content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
+
+    # ── TURING MATRIX ──
+    elif filename == "Card_turing_matrix.cpp":
+        idx = content.find("int main()")
+        if idx != -1:
+            while_idx = content.find("while (true)", idx)
+            if while_idx != -1:
+                brace_pos = content.find("{", while_idx)
+                if brace_pos != -1:
+                    brace_count = 1
+                    curr_pos = brace_pos + 1
+                    while brace_count > 0 and curr_pos < len(content):
+                        if content[curr_pos] == '{':
+                            brace_count += 1
+                        elif content[curr_pos] == '}':
+                            brace_count -= 1
+                        curr_pos += 1
+                    closing_brace_idx = curr_pos - 1
+                    loop_body = content[brace_pos+1 : closing_brace_idx]
+                    
+                    replacement = f"""#ifdef __EMSCRIPTEN__
+    g_wasm_background_tick = [=]() mutable {{
+        gApp->Housekeeping();
+        tud_task();
+    }};
+#else
+    while (true) {{
+        {loop_body}
+    }}
+#endif"""
+                    content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
+
 
         # Wrap while (!core1_is_paused) in save_global_settings and save_preset
         for func_name in ["save_global_settings", "save_preset"]:

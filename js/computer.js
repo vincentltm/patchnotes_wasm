@@ -266,12 +266,31 @@ function updateCardVisuals(cardDef) {
     if (!cardEl) return;
 
     if (!cardDef || cardDef.id === 'none') {
-        cardEl.style.display = 'none';
+        cardEl.style.display = 'block';
+        cardEl.style.opacity = '1';
+        cardEl.style.backgroundImage = "url(images/card_blank.svg)";
+        cardEl.classList.remove('svg-prebaked');
+        
+        const labelContainer = document.getElementById('activeCardLabelContainer');
+        if (labelContainer) labelContainer.innerHTML = '';
+        
+        const digitEl = document.getElementById('activeCardDigits');
+        if (digitEl) digitEl.textContent = '';
+        
+        const logo = cardEl.querySelector('.card-decoration');
+        if (logo) logo.style.display = 'none';
+
+        const labelEl = document.getElementById('activeCardLabel');
+        if (labelEl) labelEl.textContent = 'No Card';
+
         return;
     }
 
     cardEl.style.display = 'block';
     cardEl.style.opacity = '1';
+
+    const logo = cardEl.querySelector('.card-decoration');
+    if (logo) logo.style.display = 'block';
 
     // 1. Determine background SVG
     let bgUrl = 'images/card_blank.svg';
