@@ -138,10 +138,18 @@
         if (e.data.type === 'midi_from_card') {
             const input = mockMidiAccess.inputs.get('virtual-card-input');
             if (input) {
-                // Trigger both onmidimessage handler and addEventListener listeners
-                const event = new MessageEvent('midimessage', {
-                    data: new Uint8Array(e.data.data)
-                });
+                let event;
+                if (typeof MIDIMessageEvent !== 'undefined') {
+                    event = new MIDIMessageEvent('midimessage', {
+                        data: new Uint8Array(e.data.data)
+                    });
+                } else {
+                    event = new Event('midimessage');
+                    Object.defineProperty(event, 'data', {
+                        value: new Uint8Array(e.data.data),
+                        writable: false
+                    });
+                }
                 
                 if (typeof input.onmidimessage === 'function') {
                     input.onmidimessage(event);

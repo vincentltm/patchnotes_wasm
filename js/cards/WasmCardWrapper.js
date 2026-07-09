@@ -349,7 +349,7 @@ class WasmCardWrapper extends ComputerCard {
                     <button class="close-btn">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <iframe class="card-editor-iframe" src="js/cards/wasm/web/${cardId}/${htmlFile}"></iframe>
+                    <iframe class="card-editor-iframe" src="js/cards/wasm/web/${cardId}/${htmlFile}" allow="midi; serial"></iframe>
                 </div>
             </div>
         `;
