@@ -68,7 +68,15 @@ function swapComputerCard(typeIdOrName) {
     // 4. Update Visuals
     const tooltipEl = document.getElementById('activeCardTooltip');
     if (tooltipEl) {
-        tooltipEl.innerHTML = `<strong>${cardDef.name}</strong> [Firmware ${cardDef.num}]<br><em style="color:#a1a1aa">${cardDef.category || ""}</em><hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:4px 0">${cardDef.desc}`;
+        let html = `<strong>${cardDef.name}</strong> [Firmware ${cardDef.num}]<br><em style="color:#a1a1aa">${cardDef.category || ""}</em><hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:4px 0">${cardDef.desc}`;
+        let credits = [];
+        if (cardDef.creator) credits.push(`Original card: ${cardDef.creator}`);
+        if (cardDef.license) credits.push(`License: ${cardDef.license}`);
+        if (cardDef.repository) credits.push(`<a href="${cardDef.repository}" target="_blank" style="color:#60a5fa;text-decoration:underline;">Source Code</a>`);
+        if (credits.length > 0) {
+            html += `<hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:4px 0"><div style="font-size:11px;color:#a1a1aa;line-height:1.4">${credits.join(" &bull; ")}</div>`;
+        }
+        tooltipEl.innerHTML = html;
     }
 
     updateCardVisuals(cardDef);
@@ -399,6 +407,13 @@ function renderCardSlot() {
     let descText = "";
     if (def) {
         descText = `<strong>${def.name}</strong> [Firmware ${def.num}]<br><em style="color:#a1a1aa">${def.category || ""}</em><hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:4px 0">${def.desc}`;
+        let credits = [];
+        if (def.creator) credits.push(`Original card: ${def.creator}`);
+        if (def.license) credits.push(`License: ${def.license}`);
+        if (def.repository) credits.push(`<a href="${def.repository}" target="_blank" style="color:#60a5fa;text-decoration:underline;">Source Code</a>`);
+        if (credits.length > 0) {
+            descText += `<hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:4px 0"><div style="font-size:11px;color:#a1a1aa;line-height:1.4">${credits.join(" &bull; ")}</div>`;
+        }
     }
     tooltip.innerHTML = descText;
     slot.appendChild(tooltip);
