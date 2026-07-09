@@ -1286,6 +1286,7 @@ body.performance-mode .cable-svg path {
 .card-slot-container:hover .card-tooltip {
     opacity: 1;
     transform: translateX(5px);
+    pointer-events: auto;
 }
 
 /* Physical Reset Button next to Card Slot */
