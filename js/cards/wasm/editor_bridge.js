@@ -64,11 +64,15 @@
 
     const mockMidiAccess = new MockMIDIAccess();
 
-    // Override requestMIDIAccess
-    navigator.requestMIDIAccess = function(options) {
-        console.log("[Editor Bridge] Intercepted requestMIDIAccess", options);
-        return Promise.resolve(mockMidiAccess);
-    };
+    // Override requestMIDIAccess using Object.defineProperty to bypass read-only restrictions
+    Object.defineProperty(navigator, 'requestMIDIAccess', {
+        value: function(options) {
+            console.log("[Editor Bridge] Intercepted requestMIDIAccess", options);
+            return Promise.resolve(mockMidiAccess);
+        },
+        configurable: true,
+        writable: true
+    });
 
     // ────────────────────────────────────────────────────────────────────────
     // 2. WebSerial Mocking
