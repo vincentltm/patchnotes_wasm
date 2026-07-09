@@ -5,6 +5,8 @@
 // NOTE: 'AVAILABLE_CARDS' is now populated automatically in globals.js 
 // by the individual card files as they load.
 
+window.activeComputerCardId = 'turing_machine';
+
 function swapComputerCard(typeIdOrName) {
     // 0. Safety Check for Empty Library
     if (!window.AVAILABLE_CARDS || window.AVAILABLE_CARDS.length === 0) {
@@ -409,7 +411,7 @@ function renderCardSlot() {
     card.style.pointerEvents = 'none';
 
     // Initial State
-    let targetId = 'none';
+    let targetId = 'turing_machine';
 
     if (activeComputerCard) {
         // Try to find the active card in the library

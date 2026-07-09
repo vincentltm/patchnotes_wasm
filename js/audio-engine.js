@@ -3994,7 +3994,7 @@ function finishBuild() {
             audioNodes['Global_Noise'] = gn;
         }
 
-        let targetCardId = 'none';
+        let targetCardId = 'turing_machine';
         const labelEl = document.getElementById('activeCardLabel');
         if (labelEl && labelEl.textContent) {
             const def = AVAILABLE_CARDS.find(c => c.name === labelEl.textContent);

@@ -3394,7 +3394,7 @@ function loadState(state) {
             updateKnobRangeVisuals(el);
         }
     });
-    const targetCardId = state.activeCardId || 'none';
+    const targetCardId = state.activeCardId || 'turing_machine';
     swapComputerCard(targetCardId);
 
     // RESTORE UTILITY PAIR STATE
