@@ -326,9 +326,30 @@ function updateCardVisuals(cardDef) {
             }
         }
 
-        const words = nameText.toUpperCase().split(' ').filter(w => w.trim() !== '').slice(0, 2);
-        labelContainer.className = `card-label-container words-${words.length}`;
-        words.forEach((word, idx) => {
+        // Split name into 2 lines at the space closest to the middle of the string
+        let line1 = nameText.toUpperCase();
+        let line2 = "";
+        const spaces = [];
+        for (let i = 0; i < line1.length; i++) {
+            if (line1[i] === ' ') spaces.push(i);
+        }
+        if (spaces.length > 0) {
+            let bestSpace = spaces[0];
+            let minDiff = Math.abs(bestSpace - (line1.length - 1 - bestSpace));
+            for (let i = 1; i < spaces.length; i++) {
+                const diff = Math.abs(spaces[i] - (line1.length - 1 - spaces[i]));
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestSpace = spaces[i];
+                }
+            }
+            line1 = nameText.toUpperCase().substring(0, bestSpace);
+            line2 = nameText.toUpperCase().substring(bestSpace + 1);
+        }
+
+        const lines = line2 ? [line1, line2] : [line1];
+        labelContainer.className = `card-label-container words-${lines.length}`;
+        lines.forEach((word, idx) => {
             const wordEl = document.createElement('div');
             wordEl.className = `card-word card-word-${idx}`;
             wordEl.textContent = word;
