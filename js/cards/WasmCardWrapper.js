@@ -87,9 +87,9 @@ class WasmCardWrapper extends ComputerCard {
         super.mount();
         
         // Find our card definition from activeComputerCard targetCardId or UI label
-        const cardId = window.activeComputerCardId || 'birds';
+        const cardId = window.activeComputerCardId;
         this.cardId = cardId;
-        const cardIdx = WASM_CARD_MAP[cardId] ?? 34; // default to Birds
+        const cardIdx = WASM_CARD_MAP[cardId] ?? null; // null = no card loaded
         
         console.log(`[WasmCardWrapper] Mounting card ID: ${cardId} (WASM Index: ${cardIdx})`);
         
@@ -111,13 +111,16 @@ class WasmCardWrapper extends ComputerCard {
             }
         }
 
-        if (audioNodes['WasmComputerNode']) {
+        if (audioNodes['WasmComputerNode'] && cardIdx !== null) {
             audioNodes['WasmComputerNode'].port.postMessage({
                 type: 'load_card',
                 cardIndex: cardIdx,
                 flashSectors: flashSectors
             });
+        } else if (cardIdx === null) {
+            console.warn(`[WasmCardWrapper] No WASM index for card ID: ${cardId}`);
         }
+
         
         // Setup LED message handler if not already done, or listen to messages from WasmComputerNode
         if (audioNodes['WasmComputerNode']) {
@@ -129,7 +132,7 @@ class WasmCardWrapper extends ComputerCard {
                 } else if (e.data.type === 'serial_from_card') {
                     this.handleSerialFromCard(e.data.data);
                 } else if (e.data.type === 'flash_persisted') {
-                    const activeCardId = this.cardId || window.activeComputerCardId || 'birds';
+                    const activeCardId = this.cardId || window.activeComputerCardId;
                     console.log(`[WasmCardWrapper] Saving flash memory for ${activeCardId}: ${Object.keys(e.data.sectors || {}).length} sectors`);
                     if (e.data.sectors && Object.keys(e.data.sectors).length > 0) {
                         localStorage.setItem('mtm_flash_sectors_' + activeCardId, JSON.stringify(e.data.sectors));
@@ -195,8 +198,8 @@ class WasmCardWrapper extends ComputerCard {
     }
 
     reset() {
-        const cardId = this.cardId || window.activeComputerCardId || 'birds';
-        const cardIdx = WASM_CARD_MAP[cardId] ?? 34;
+        const cardId = this.cardId || window.activeComputerCardId;
+        const cardIdx = WASM_CARD_MAP[cardId] ?? null;
         
         console.log(`[WasmCardWrapper] Resetting card ID: ${cardId} (WASM Index: ${cardIdx})`);
 
@@ -212,7 +215,7 @@ class WasmCardWrapper extends ComputerCard {
             }
         }
 
-        if (audioNodes['WasmComputerNode']) {
+        if (audioNodes['WasmComputerNode'] && cardIdx !== null) {
             audioNodes['WasmComputerNode'].port.postMessage({
                 type: 'load_card',
                 cardIndex: cardIdx,
@@ -635,7 +638,7 @@ class WasmCardWrapper extends ComputerCard {
     }
 
     getState() {
-        const cardId = window.activeComputerCardId || 'birds';
+        const cardId = window.activeComputerCardId;
         if (cardId === 'utility_pair') {
             return {
                 utilityIndexL: this.utilityIndexL,
@@ -646,7 +649,7 @@ class WasmCardWrapper extends ComputerCard {
     }
 
     setState(state) {
-        const cardId = window.activeComputerCardId || 'birds';
+        const cardId = window.activeComputerCardId;
         if (cardId === 'utility_pair' && state) {
             this.utilityIndexL = state.utilityIndexL ?? 0;
             this.utilityIndexR = state.utilityIndexR ?? 0;
