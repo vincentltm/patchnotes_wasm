@@ -1892,8 +1892,21 @@ const CARD_LIBRARY = [
         desc: 'Nature soundscape audio. A cozy rain ambience mix for background listening. You control the intensity. This card plays rain ambience which was recorded in my backyard.',
         class: 'WasmCardWrapper',
         category: 'Utility',
-        labels: {},
-        layers: {},
+        labels: {
+            'jack-cv1in': 'Intensity CV',
+            'jack-pulse1in': 'Thunder Trigger',
+            'jack-audio1out': 'Mix L',
+            'jack-audio2out': 'Mix R',
+            'jack-cv1out': 'Intensity Monitor',
+            'jack-cv2out': 'LFO CV Out'
+        },
+        layers: {
+            'any': {
+                'knob-large-computer': 'Rain Intensity',
+                'knob-small-x': 'Unused',
+                'knob-small-y': 'Unused'
+            }
+        },
         creator: 'Brian Dorsey',
         license: '',
         repository: 'https://codeberg.org/briandorsey/mtmws_cards'

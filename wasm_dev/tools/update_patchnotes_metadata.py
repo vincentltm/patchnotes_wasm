@@ -355,30 +355,30 @@ def main():
                     
                     in_labels = False
                     in_layers = False
+                    brace_depth = 0
                     for l in card_lines[:-1]:
                         if re.search(r"\b(creator|license|repository):\s*['\"]", l):
                             continue
-                        if "labels:" in l:
-                            if "{" in l and "}" in l: # single-line labels
-                                continue
-                            else:
+                        
+                        if not in_labels and not in_layers:
+                            if "labels:" in l:
+                                if "{" in l and "}" in l: # single-line
+                                    continue
                                 in_labels = True
+                                brace_depth = l.count("{") - l.count("}")
                                 continue
-                        if "layers:" in l:
-                            if "{" in l and "}" in l:
-                                continue
-                            else:
+                            if "layers:" in l:
+                                if "{" in l and "}" in l: # single-line
+                                    continue
                                 in_layers = True
+                                brace_depth = l.count("{") - l.count("}")
                                 continue
-                        if in_labels:
-                            if "}" in l:
+                            cleaned_lines.append(l)
+                        else:
+                            brace_depth += l.count("{") - l.count("}")
+                            if brace_depth <= 0:
                                 in_labels = False
-                            continue
-                        if in_layers:
-                            if "}" in l:
                                 in_layers = False
-                            continue
-                        cleaned_lines.append(l)
                         
                     last_idx = -1
                     for idx in range(len(cleaned_lines)-1, -1, -1):

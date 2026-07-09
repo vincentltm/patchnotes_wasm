@@ -413,6 +413,7 @@ class WasmCardWrapper extends ComputerCard {
         if (!cardDef) return;
 
         const zMode = ['down', 'middle', 'up'][switchVal] || 'middle';
+        const anyLabels = (cardDef.layers && cardDef.layers['any']) || {};
         const layerLabels = (cardDef.layers && cardDef.layers[zMode]) || {};
 
         const newLabels = {
@@ -421,6 +422,7 @@ class WasmCardWrapper extends ComputerCard {
             'knob-small-x': 'X',
             'knob-small-y': 'Y',
             ...(cardDef.labels || {}),
+            ...anyLabels,
             ...layerLabels
         };
 
