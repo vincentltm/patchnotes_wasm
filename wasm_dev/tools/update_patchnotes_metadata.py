@@ -179,6 +179,74 @@ def parse_yaml(yaml_path):
                     
     return result
 
+def parse_knob_layers(yaml_path):
+    if not yaml_path or not os.path.exists(yaml_path):
+        return {}
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    
+    layers = {}
+    lines = content.splitlines()
+    current_layer = None
+    current_knob = None
+    in_controls = False
+    in_knobs = False
+    
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            continue
+        indent = len(line) - len(line.lstrip())
+        
+        if indent == 0:
+            if stripped.startswith('controls:'):
+                in_controls = True
+            else:
+                in_controls = False
+            in_knobs = False
+            continue
+            
+        if in_controls and indent == 2:
+            if stripped.startswith('knobs:'):
+                in_knobs = True
+            else:
+                in_knobs = False
+            continue
+            
+        if in_knobs and indent == 4:
+            if stripped.startswith('- when:'):
+                m = re.search(r'z:\s*([a-zA-Z0-9_-]+)', stripped)
+                if m:
+                    z_val = m.group(1).lower()
+                    current_layer = {}
+                    layers[z_val] = current_layer
+                else:
+                    current_layer = None
+            continue
+            
+        if current_layer is not None and indent == 6:
+            if ':' in stripped:
+                knob_name = stripped.split(':', 1)[0].strip().lower()
+                if knob_name in ['main', 'x', 'y']:
+                    current_knob = knob_name
+            continue
+            
+        if current_layer is not None and current_knob is not None and indent == 8:
+            if ':' in stripped:
+                k, v = stripped.split(':', 1)
+                k = k.strip().lower()
+                v = v.strip().strip('\"\'')
+                if k == 'name':
+                    js_knob_id = {
+                        'main': 'knob-large-computer',
+                        'x': 'knob-small-x',
+                        'y': 'knob-small-y'
+                    }[current_knob]
+                    current_layer[js_knob_id] = v
+            continue
+            
+    return layers
+
 def main():
     with open(DEFINITIONS_PATH, "r", encoding="utf-8") as f:
         content = f.read()
@@ -266,10 +334,27 @@ def main():
                         
                     labels_str = "{\n" + ",\n".join(labels_lines) + "\n        }" if labels_lines else "{}"
 
+                    # Build layers dictionary
+                    layers_data = parse_knob_layers(yaml_path)
+                    layers_str = ""
+                    if layers_data:
+                        layers_lines = []
+                        for z_mode, knobs in layers_data.items():
+                            knob_lines = []
+                            for k, v in knobs.items():
+                                escaped_v = v.replace("'", "\\'")
+                                knob_lines.append(f"                '{k}': '{escaped_v}'")
+                            knobs_str = "{\n" + ",\n".join(knob_lines) + "\n            }"
+                            layers_lines.append(f"            '{z_mode}': {knobs_str}")
+                        layers_str = "{\n" + ",\n".join(layers_lines) + "\n        }"
+                    else:
+                        layers_str = "{}"
+
                     cleaned_lines = []
                     closing_line = card_lines[-1]
                     
                     in_labels = False
+                    in_layers = False
                     for l in card_lines[:-1]:
                         if re.search(r"\b(creator|license|repository):\s*['\"]", l):
                             continue
@@ -279,9 +364,19 @@ def main():
                             else:
                                 in_labels = True
                                 continue
+                        if "layers:" in l:
+                            if "{" in l and "}" in l:
+                                continue
+                            else:
+                                in_layers = True
+                                continue
                         if in_labels:
                             if "}" in l:
                                 in_labels = False
+                            continue
+                        if in_layers:
+                            if "}" in l:
+                                in_layers = False
                             continue
                         cleaned_lines.append(l)
                         
@@ -296,7 +391,7 @@ def main():
                             
                     escaped_creator = creator.replace("'", "\\'")
                     indent = "        "
-                    new_fields = f"{indent}labels: {labels_str},\n{indent}creator: '{escaped_creator}',\n{indent}license: '{lic}',\n{indent}repository: '{repo}'\n"
+                    new_fields = f"{indent}labels: {labels_str},\n{indent}layers: {layers_str},\n{indent}creator: '{escaped_creator}',\n{indent}license: '{lic}',\n{indent}repository: '{repo}'\n"
                     cleaned_lines.append(new_fields)
                     cleaned_lines.append(closing_line)
                     
@@ -365,6 +460,22 @@ def main():
                         labels_lines.append(f"            '{k}': '{escaped_v}'")
                         
                     labels_str = "{\n" + ",\n".join(labels_lines) + "\n        }" if labels_lines else "{}"
+
+                    # Build layers dictionary
+                    layers_data = parse_knob_layers(yaml_path)
+                    layers_str = ""
+                    if layers_data:
+                        layers_lines = []
+                        for z_mode, knobs in layers_data.items():
+                            knob_lines = []
+                            for k, v in knobs.items():
+                                escaped_v = v.replace("'", "\\'")
+                                knob_lines.append(f"                '{k}': '{escaped_v}'")
+                            knobs_str = "{\n" + ",\n".join(knob_lines) + "\n            }"
+                            layers_lines.append(f"            '{z_mode}': {knobs_str}")
+                        layers_str = "{\n" + ",\n".join(layers_lines) + "\n        }"
+                    else:
+                        layers_str = "{}"
                     
                     escaped_creator = creator.replace("'", "\\'")
                     escaped_desc = desc.replace("'", "\\'").replace("\n", " ")
@@ -387,6 +498,7 @@ def main():
         class: 'WasmCardWrapper',
         category: 'Utility',
         labels: {labels_str},
+        layers: {layers_str},
         creator: '{escaped_creator}',
         license: '{lic}',
         repository: '{repo}'

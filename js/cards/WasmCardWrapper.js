@@ -2,8 +2,8 @@
 // DO NOT edit manually — regenerate by running tools/wasm_build_prep.py
 const WASM_CARD_MAP = {
     'midi':              0,  // simple_midi
-    'turing':            1,  // turing_machine
-    'benjolin':          2,  // byo_benjolin
+    'turing_machine':    1,
+    'byo_benjolin':      2,
     'chord_blimey':      3,
     'usb_audio':         4,  // usb_audio_bridge
     'bumpers':           5,
@@ -23,7 +23,7 @@ const WASM_CARD_MAP = {
     'utility_pair':      19,
     'siren':             20,
     'eighties_bass':     21,
-    'cirpy':             22,  // cirpy_wavetable
+    'cirpy_wavetable':   22,
     'esp':               23,
     'vink':              24,
     'drumdrum':          25,
@@ -32,7 +32,7 @@ const WASM_CARD_MAP = {
     'od':                28,
     'knots':             29,
     'blackbird':         30,
-    'rain':              31,  // backyard_rain
+    'backyard_rain':     31,
     'birds':             32,
     'bends':             33,
     'rompler':           34,
@@ -81,6 +81,7 @@ class WasmCardWrapper extends ComputerCard {
         this.editorBtn = null;
         this.editorModal = null;
         this.editorIframe = null;
+        this.lastSwitchVal = null;
     }
 
     mount() {
@@ -97,6 +98,12 @@ class WasmCardWrapper extends ComputerCard {
             this.createSelectionUI();
             this.updateLabels();
             this.writeUtilityIndicesToWasm();
+        } else {
+            // Initialize dynamic labels based on current physical switch state
+            const switchVal = (typeof componentStates !== 'undefined' && componentStates['switch-3way-computer']) ? componentStates['switch-3way-computer'].value : 1;
+            const mappedSwitch = 2 - switchVal;
+            this.lastSwitchVal = mappedSwitch;
+            this.updateWasmCardLabels(mappedSwitch);
         }
 
         // Retrieve saved flash sectors from localStorage
@@ -358,6 +365,12 @@ class WasmCardWrapper extends ComputerCard {
     }
 
     update(params, time) {
+        // Update dynamic labels if Z-switch changes layers
+        if (params.switch !== this.lastSwitchVal) {
+            this.lastSwitchVal = params.switch;
+            this.updateWasmCardLabels(params.switch);
+        }
+
         // Send control parameters (knobs and switches) to the worklet
         if (audioNodes['WasmComputerNode']) {
             audioNodes['WasmComputerNode'].port.postMessage({
@@ -389,6 +402,32 @@ class WasmCardWrapper extends ComputerCard {
                 type: 'connected',
                 connected: connected
             });
+        }
+    }
+
+    updateWasmCardLabels(switchVal) {
+        const cardId = window.activeComputerCardId;
+        if (cardId === 'utility_pair') return; // Handled separately
+        
+        const cardDef = (window.AVAILABLE_CARDS || []).find(c => c.id === cardId);
+        if (!cardDef) return;
+
+        const zMode = ['down', 'middle', 'up'][switchVal] || 'middle';
+        const layerLabels = (cardDef.layers && cardDef.layers[zMode]) || {};
+
+        const newLabels = {
+            'knob-large-computer': 'Main',
+            'switch-3way-computer': 'Mode',
+            'knob-small-x': 'X',
+            'knob-small-y': 'Y',
+            ...(cardDef.labels || {}),
+            ...layerLabels
+        };
+
+        this.labels = newLabels;
+
+        if (typeof renderComponentLabels === 'function') {
+            renderComponentLabels();
         }
     }
 
