@@ -750,7 +750,7 @@ if (window.AVAILABLE_CARDS) {
     window.AVAILABLE_CARDS.forEach(card => {
         if (card.id !== 'none') {
             card.class = WasmCardWrapper;
-            card.hasImplementation = true;
+            card.hasImplementation = WASM_CARD_MAP.hasOwnProperty(card.id);
         }
     });
 }

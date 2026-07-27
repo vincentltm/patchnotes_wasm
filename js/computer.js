@@ -210,7 +210,7 @@ function renderCardGrid() {
         el.innerHTML = `
             <div class="mc-header">
                 <span class="mc-num">${card.num}</span>
-                ${card.hasImplementation ? '<span class="mc-badge">AUDIO</span>' : ''}
+                ${card.hasImplementation ? '<span class="mc-badge">AUDIO</span>' : '<span class="mc-badge mc-badge-metadata">HARDWARE ONLY</span>'}
             </div>
             <div>
                 <div class="mc-label">${card.name}</div>

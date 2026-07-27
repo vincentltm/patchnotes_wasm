@@ -1494,20 +1494,37 @@ body.performance-mode .cable-svg path {
     box-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
 }
 
-/* Dummy Card Style (Non-functional) */
+/* Dummy Card Style (Non-functional / Metadata-Only) */
 .mini-card.dummy-card {
-    opacity: 0.7;
+    opacity: 0.55;
+    filter: grayscale(70%);
     border-style: dashed;
-    background-image: none;
+    border-color: #555;
+    background-color: rgba(25, 25, 25, 0.6);
 }
 
 .mini-card.dummy-card:hover {
-    opacity: 1;
+    opacity: 0.9;
+    filter: grayscale(30%);
     border-style: solid;
+    border-color: #888;
 }
 
 .mini-card.dummy-card .mc-label {
     color: #aaa;
+}
+
+.mc-badge-metadata {
+    background-color: #444 !important;
+    color: #aaa !important;
+    box-shadow: none !important;
+    font-size: 9px;
+    border: 1px solid #555;
+}
+
+.metadata-only-card {
+    filter: grayscale(50%) opacity(0.85);
+    position: relative;
 }
 
 
