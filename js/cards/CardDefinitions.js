@@ -1348,33 +1348,6 @@ const CARD_LIBRARY = [
         creator: 'Tom Waters',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/05_chord_blimey'
-    },
-    {
-        id: 'usb_audio',
-        name: 'USB Audio & MIDI',
-        num: '06',
-        desc: '6-Channel USB Audio & MIDI firmware with CV/Gate support',
-        class: 'WasmCardWrapper',
-        category: 'Utility',
-        labels: {
-            'jack-audio1in': 'Audio Input 1',
-            'jack-audio2in': 'Audio Input 2',
-            'jack-cv1in': 'CV Input 1',
-            'jack-cv2in': 'CV Input 2',
-            'jack-pulse1in': 'Pulse Input 1',
-            'jack-pulse2in': 'Pulse Input 2',
-            'jack-audio1out': 'Audio Output 1',
-            'jack-audio2out': 'Audio Output 2',
-            'jack-cv1out': 'CV Output 1',
-            'jack-cv2out': 'CV Output 2',
-            'jack-pulse1out': 'Pulse Output 1',
-            'jack-pulse2out': 'Pulse Output 2'
-        },
-        layers: {},
-        creator: 'Vincent Maurer (vincentmaurer.de)',
-        license: 'GPL-3.0',
-        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/06_usb_audio'
-    },
     {
         id: 'bytebeat',
         name: 'Bytebeat',
