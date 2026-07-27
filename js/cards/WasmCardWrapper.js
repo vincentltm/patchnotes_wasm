@@ -135,7 +135,13 @@ class WasmCardWrapper extends ComputerCard {
                 switchZ: 2 - initSwitchVal  // UI 0=Up,1=Mid,2=Down → C++ 2=Up,1=Mid,0=Down
             });
         } else if (cardIdx === null) {
-            console.warn(`[WasmCardWrapper] No WASM index for card ID: ${cardId}`);
+            console.warn(`[WasmCardWrapper] Mounting metadata-only card (no WASM binary): ${cardId}`);
+            if (audioNodes['WasmComputerNode']) {
+                audioNodes['WasmComputerNode'].port.postMessage({
+                    type: 'load_card',
+                    cardIndex: -1
+                });
+            }
         }
 
         

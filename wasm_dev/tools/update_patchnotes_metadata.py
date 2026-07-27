@@ -245,7 +245,37 @@ def parse_knob_layers(yaml_path):
                     current_layer[js_knob_id] = v
             continue
             
-    return layers
+def discover_all_hardware_cards():
+    cards = []
+    seen = set()
+    
+    # 1. Whitelisted functional cards
+    for c in CARD_WHITELIST:
+        seen.add(c["id"])
+        cards.append(c)
+        
+    # 2. Discover remaining hardware folders with info.yaml
+    releases_dir = "/Users/vmaurer/Music/Workshop_VCV_Dev/Workshop_Computer_VCV/deps/Workshop_Computer/releases"
+    external_dir = "/Users/vmaurer/Music/Workshop_VCV_Dev/Workshop_Computer_VCV/deps/external"
+    
+    for search_dir in [releases_dir, external_dir]:
+        if not os.path.exists(search_dir):
+            continue
+        for folder in sorted(os.listdir(search_dir)):
+            yaml_path = os.path.join(search_dir, folder, "info.yaml")
+            if os.path.exists(yaml_path):
+                parts = folder.split('_', 1)
+                num = parts[0] if parts[0].isdigit() else "99"
+                raw_id = parts[1].lower() if len(parts) > 1 else folder.lower()
+                clean_id = raw_id.replace(" ", "_").replace("-", "_")
+                if clean_id not in seen:
+                    seen.add(clean_id)
+                    cards.append({
+                        "id": clean_id,
+                        "dir": folder,
+                        "num": num
+                    })
+    return cards
 
 def main():
     with open(DEFINITIONS_PATH, "r", encoding="utf-8") as f:
@@ -283,9 +313,7 @@ def main():
                     num = num_match.group(1)
                     
                     whitelisted_card_ids = set(c["id"] for c in CARD_WHITELIST)
-                    if card_id not in whitelisted_card_ids:
-                        print(f"Removing unwhitelisted/unbuilt card from definitions: {card_id}")
-                        continue
+                    is_functional = card_id in whitelisted_card_ids
                         
                     existing_ids.add(card_id)
                     # Find info.yaml folder
@@ -410,10 +438,11 @@ def main():
             
         # Check if we are at the closing brace of CARD_LIBRARY array
         if stripped == "];" and len(output_lines) > 0:
-            # We want to insert any missing cards before the array closes!
-            for card in CARD_WHITELIST:
+            whitelisted_card_ids = set(c["id"] for c in CARD_WHITELIST)
+            for card in discover_all_hardware_cards():
                 if card["id"] not in existing_ids:
-                    print(f"Adding new card to definitions: {card['id']}")
+                    is_functional = card["id"] in whitelisted_card_ids
+                    print(f"Adding new card to definitions (functional={is_functional}): {card['id']}")
                     
                     # Find info.yaml
                     folder_name = ""

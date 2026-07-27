@@ -19,16 +19,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Gate 1',
             'jack-pulse2out': 'Gate 2'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'MIDI CC Source (Main)',
-                'knob-small-x': 'MIDI CC Source (X)',
-                'knob-small-y': 'MIDI CC Source (Y)'
-            },
-            'down': {
-                'knob-large-computer': 'Enter Calibration'
-            }
-        },
+        layers: {},
         creator: 'Tom Whitwell',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/00_Simple_MIDI'
@@ -54,16 +45,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Channel 1 DAC CV',
             'jack-audio2out': 'Channel 2 DAC CV'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Randomness / Write',
-                'knob-small-x': 'Loop Length',
-                'knob-small-y': 'Divide/Multiply'
-            },
-            'down': {
-                'knob-large-computer': 'Tap Tempo'
-            }
-        },
+        layers: {},
         creator: 'Tom Whitwell',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/03_Turing_Machine'
@@ -89,13 +71,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': '1-Bit Out 1',
             'jack-pulse2out': '1-Bit Out 2'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Chaos',
-                'knob-small-x': 'Offset',
-                'knob-small-y': 'Chaos VCA'
-            }
-        },
+        layers: {},
         creator: 'Dune Desormeaux',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/04_BYO_Benjolin'
@@ -121,13 +97,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Pulse Output 1',
             'jack-pulse2out': 'Pulse Output 2'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'MIDI CC Source (Main)',
-                'knob-small-x': 'MIDI CC Source (X)',
-                'knob-small-y': 'MIDI CC Source (Y)'
-            }
-        },
+        layers: {},
         creator: 'Vincent Maurer (vincentmaurer.de)',
         license: 'GPL-3.0',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/06_usb_audio'
@@ -153,16 +123,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Delay Output L',
             'jack-audio2out': 'Delay Output R'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Bounce Decay',
-                'knob-small-x': 'Channel A Rate',
-                'knob-small-y': 'Channel B Rate'
-            },
-            'down': {
-                'knob-large-computer': 'Manual Trigger'
-            }
-        },
+        layers: {},
         creator: 'Chris Johnson',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/07_bumpers'
@@ -188,13 +149,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Internal Clock Output',
             'jack-pulse2out': 'Clock Divider Output'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Time / Speed',
-                'knob-small-x': 'Int Clock Rate',
-                'knob-small-y': 'Clock Div'
-            }
-        },
+        layers: {},
         creator: 'Dune Desormeaux',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/11_goldfish'
@@ -220,16 +175,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'S&H Comparator Gate',
             'jack-pulse2out': 'Realtime Comparator Gate'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Algorithm Select',
-                'knob-small-x': 'Parameter X',
-                'knob-small-y': 'Parameter Y'
-            },
-            'down': {
-                'knob-large-computer': 'Randomize Offsets'
-            }
-        },
+        layers: {},
         creator: 'Eric Gao',
         license: 'CC BY-NC-SA 3.0',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/13_noisebox'
@@ -252,14 +198,7 @@ const CARD_LIBRARY = [
             'jack-cv1out': 'Read Head 3',
             'jack-cv2out': 'Read Head 4'
         },
-        layers: {
-            'down': {
-                'knob-large-computer': 'Reset Heads'
-            },
-            'up': {
-                'knob-large-computer': 'Next Motion Function'
-            }
-        },
+        layers: {},
         creator: 'Chris Johnson',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/14_cvmod'
@@ -285,23 +224,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Cut/Wrap Trigger',
             'jack-pulse2out': 'Envelope-End Trigger'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Track Select / Turing Probability',
-                'knob-small-x': 'Mix Gain',
-                'knob-small-y': 'Radiate'
-            },
-            'up': {
-                'knob-large-computer': 'Selected Track Speed / Direction',
-                'knob-small-x': 'Selected Track Level Slot',
-                'knob-small-y': 'Selected Track Start Position'
-            },
-            'down': {
-                'knob-small-y': 'CV2 Envelope Attack',
-                'knob-large-computer': 'Record-Hold / Reset Gesture',
-                'knob-small-x': 'Input Gain'
-            }
-        },
+        layers: {},
         creator: 'Dune Desormeaux',
         license: 'GPL-3.0',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/15_MLRws'
@@ -340,22 +263,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Configurable Pulse Output 1',
             'jack-pulse2out': 'Configurable Pulse Output 2'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Configurable Parameter A',
-                'knob-small-x': 'Configurable Parameter B',
-                'knob-small-y': 'Configurable Parameter C'
-            },
-            'up': {
-                'knob-large-computer': 'Reverb Open Input'
-            },
-            'middle': {
-                'knob-large-computer': 'Reverb Input Gated'
-            },
-            'down': {
-                'knob-large-computer': 'Reverb Freeze'
-            }
-        },
+        layers: {},
         creator: 'Chris Johnson',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/20_reverb'
@@ -377,19 +285,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Resonator Output Mid',
             'jack-audio2out': 'Resonator Output Side'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Wet Dry Mix',
-                'knob-small-x': 'Base Pitch',
-                'knob-small-y': 'Damping'
-            },
-            'up': {
-                'knob-large-computer': 'Tuning Mode'
-            },
-            'down': {
-                'knob-large-computer': 'Factory Reset Progression'
-            }
-        },
+        layers: {},
         creator: 'Johan Eklund',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/21_resonator'
@@ -415,13 +311,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Grain Completion Trigger',
             'jack-pulse2out': 'Stochastic Clock'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Grain Speed',
-                'knob-small-x': 'Delay Spread',
-                'knob-small-y': 'Grain Size'
-            }
-        },
+        layers: {},
         creator: 'Dune Desormeaux',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/22_sheep'
@@ -445,19 +335,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Z High Gate',
             'jack-pulse2out': 'Complement Gate'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Main Attenuverter',
-                'knob-small-x': 'CV1 Attenuverter',
-                'knob-small-y': 'CV2 Attenuverter'
-            },
-            'up': {
-                'knob-large-computer': 'Gate High State'
-            },
-            'down': {
-                'knob-large-computer': 'Momentary Gate High'
-            }
-        },
+        layers: {},
         creator: 'Brian Dorsey',
         license: '',
         repository: 'https://codeberg.org/briandorsey/mtmws_cards/src/branch/main/crafted_volts'
@@ -483,24 +361,7 @@ const CARD_LIBRARY = [
             'jack-cv2out': 'Right Utility CV Output',
             'jack-pulse2out': 'Right Utility Pulse Output'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Left Utility Secondary Control',
-                'knob-small-x': 'Left Utility Primary Control',
-                'knob-small-y': 'Right Utility Primary Control'
-            },
-            'any': {
-                'knob-large-computer': 'Utility Selector (multi-pack firmware)',
-                'knob-small-x': 'Left Utility Select',
-                'knob-small-y': 'Right Utility Select'
-            },
-            'up': {
-                'knob-large-computer': 'Run Selected Pair'
-            },
-            'down': {
-                'knob-large-computer': 'Enter Selector Mode'
-            }
-        },
+        layers: {},
         creator: 'Chris Johnson',
         license: 'MIT',
         repository: 'https://github.com/chrisgjohnson/Utility-Pair'
@@ -548,21 +409,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Sub-osc Clock',
             'jack-pulse2out': 'Divide-by-2 Clock'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Warp',
-                'knob-small-x': 'Span',
-                'knob-small-y': 'Morph'
-            },
-            'middle': {
-                'knob-large-computer': 'Seed',
-                'knob-small-x': 'Scan',
-                'knob-small-y': 'Basis'
-            },
-            'down': {
-                'knob-large-computer': 'Bank Cycle'
-            }
-        },
+        layers: {},
         creator: 'Moses Hoyt',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/27_Siren'
@@ -582,16 +429,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Audio Left',
             'jack-audio2out': 'Audio Right'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Filter Cutoff',
-                'knob-small-x': 'Pitch Offset',
-                'knob-small-y': 'Filter Resonance'
-            },
-            'down': {
-                'knob-large-computer': 'Filter Mode Cycle'
-            }
-        },
+        layers: {},
         creator: 'Tod Kurt (@todbot)',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/28_eighties_bass'
@@ -617,13 +455,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Note Gate',
             'jack-pulse2out': 'Clock Mirror'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Position / Destination',
-                'knob-small-x': 'Delay',
-                'knob-small-y': 'Reverb'
-            }
-        },
+        layers: {},
         creator: 'Adrian Vos',
         license: 'GPL-3.0',
         repository: 'https://github.com/adrianvos/XHT_card'
@@ -643,19 +475,7 @@ const CARD_LIBRARY = [
             'jack-cv1out': 'Wavetable Position CV',
             'jack-cv2out': 'LFO Modulation CV'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Wavetable Position',
-                'knob-small-x': 'LFO Amount',
-                'knob-small-y': 'LFO Rate'
-            },
-            'down': {
-                'knob-large-computer': 'Next Wavetable'
-            },
-            'up': {
-                'knob-large-computer': 'Quantize Toggle'
-            }
-        },
+        layers: {},
         creator: 'Tod Kurt (@todbot)',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/30_cirpy_wavetable'
@@ -679,21 +499,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Step Trigger',
             'jack-pulse2out': 'End-of-Cycle Trigger'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Tempo',
-                'knob-small-x': 'Sequence Length',
-                'knob-small-y': 'VCO 2 Offset'
-            },
-            'middle': {
-                'knob-large-computer': 'Tempo',
-                'knob-small-x': 'Step Pitch',
-                'knob-small-y': 'Step Velocity'
-            },
-            'down': {
-                'knob-large-computer': 'Play/Pause Toggle'
-            }
-        },
+        layers: {},
         creator: 'Moses Hoyt',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/33_drumdrum'
@@ -750,13 +556,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'bb.pulseout[1]',
             'jack-pulse2out': 'bb.pulseout[2]'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'bb.knob.main',
-                'knob-small-x': 'bb.knob.x',
-                'knob-small-y': 'bb.knob.y'
-            }
-        },
+        layers: {},
         creator: 'Dune Desormeaux',
         license: 'GPLv3 or later',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/41_blackbird'
@@ -812,21 +612,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Bird One Onset Pulse',
             'jack-pulse2out': 'Bird Two Onset Pulse'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Lock/Change Amount',
-                'knob-small-x': 'Bird Pitch',
-                'knob-small-y': 'Playback Time'
-            },
-            'up': {
-                'knob-large-computer': 'Lock/Change Amount (Wild)',
-                'knob-small-x': 'Bird Pitch (Wild)',
-                'knob-small-y': 'Playback Time (Wild)'
-            },
-            'down': {
-                'knob-large-computer': 'Reseed'
-            }
-        },
+        layers: {},
         creator: 'Tom Whitwell',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/44_Birds'
@@ -852,13 +638,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Pulse 1',
             'jack-pulse2out': 'Pulse 2'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Loop window / Right loop length',
-                'knob-small-x': 'Left position offset / Right window start',
-                'knob-small-y': 'Right position offset / Right speed'
-            }
-        },
+        layers: {},
         creator: 'Joep Vermaat',
         license: 'MIT',
         repository: 'https://codeberg.org/johantv/two-tracks'
@@ -884,23 +664,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Assignable Pulse Out 1',
             'jack-pulse2out': 'Assignable Pulse Out 2'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Envelope / Decay',
-                'knob-small-x': 'Pitch',
-                'knob-small-y': 'Timbre / Color'
-            },
-            'middle': {
-                'knob-large-computer': 'Wet/Dry Mix',
-                'knob-small-x': 'Effect Parameter 1',
-                'knob-small-y': 'Effect Parameter 2'
-            },
-            'down': {
-                'knob-large-computer': 'Internal Tempo',
-                'knob-small-x': 'Performance Parameter 1',
-                'knob-small-y': 'Performance Parameter 2'
-            }
-        },
+        layers: {},
         creator: 'Vincent Maurer',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/50_flux'
@@ -960,18 +724,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Audio Out Left',
             'jack-audio2out': 'Audio Out Right'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Loop vs Grains Blend',
-                'knob-small-y': 'Max Grain Size'
-            },
-            'middle': {
-                'knob-small-x': 'Repitch Chance'
-            },
-            'up_or_down_record': {
-                'knob-small-x': 'Punch Record'
-            }
-        },
+        layers: {},
         creator: 'Steve Jones',
         license: 'MIT',
         repository: 'https://github.com/sdrjones/mtws/tree/main/53_glitter'
@@ -1017,17 +770,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Internal Clock Pulse',
             'jack-pulse2out': 'Sequence Pulse'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Key Center',
-                'knob-small-x': 'Loop Length',
-                'knob-small-y': 'VCA Att'
-            },
-            'down': {
-                'knob-small-x': 'Pulse Duration',
-                'knob-small-y': 'Pulse Probability Threshold'
-            }
-        },
+        layers: {},
         creator: 'Dune Desormeaux',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/55_fifths'
@@ -1117,23 +860,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Internal Synth Voice A',
             'jack-audio2out': 'Internal Output B / Dual Melody Voice B'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Loop Lock Length / Mutation',
-                'knob-small-x': 'Melody Profile',
-                'knob-small-y': 'Percussion Profile'
-            },
-            'up': {
-                'knob-large-computer': 'Base Transpose',
-                'knob-small-x': 'Melody Profile',
-                'knob-small-y': 'Percussion Profile'
-            },
-            'down': {
-                'knob-large-computer': 'Scale Select',
-                'knob-small-x': 'Melody Profile',
-                'knob-small-y': 'Percussion Profile'
-            }
-        },
+        layers: {},
         creator: 'Andy Jenkinson (uglifruit)',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/60_markov'
@@ -1157,21 +884,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Gate 1 Passthrough',
             'jack-pulse2out': 'Gate 2 Passthrough'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Decay/Release',
-                'knob-small-x': 'Filter Resonance',
-                'knob-small-y': 'Pulse Width'
-            },
-            'up': {
-                'knob-large-computer': 'Decay/Release',
-                'knob-small-x': 'Voice 1 Waveform',
-                'knob-small-y': 'Voice 2 Waveform'
-            },
-            'down': {
-                'knob-large-computer': 'Randomize'
-            }
-        },
+        layers: {},
         creator: 'Joep Vermaat',
         license: 'MIT',
         repository: 'https://codeberg.org/johantv/voices-of-sid'
@@ -1195,19 +908,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Jump Gesture Trigger',
             'jack-pulse2out': 'Sample-Select Gesture Trigger'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Position / Sample Target',
-                'knob-small-x': 'Internal Tempo',
-                'knob-small-y': 'Timestretch Amount'
-            },
-            'down': {
-                'knob-large-computer': 'Jump To Main Position'
-            },
-            'up': {
-                'knob-large-computer': 'Select Sample By Main Position'
-            }
-        },
+        layers: {},
         creator: 'Infinite Digits',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/66_stretchcore'
@@ -1246,21 +947,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Loop Boundary Pulse',
             'jack-pulse2out': 'Record Complete Pulse'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Mix Amount',
-                'knob-small-x': 'Harmonic Effect Select',
-                'knob-small-y': 'Destructive Effect Select'
-            },
-            'up': {
-                'knob-large-computer': 'Degrade Commit Rate',
-                'knob-small-x': 'Harmonic Degrade Effect',
-                'knob-small-y': 'Destructive Degrade Effect'
-            },
-            'down': {
-                'knob-large-computer': 'Boot Mode Select'
-            }
-        },
+        layers: {},
         creator: 'Joep Vermaat',
         license: 'MIT',
         repository: 'https://codeberg.org/johantv/Degenerator'
@@ -1286,23 +973,7 @@ const CARD_LIBRARY = [
             'jack-cv1out': 'Bass Root Pitch CV',
             'jack-cv2out': 'Bass Mirror Pitch CV'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Pattern Energy',
-                'knob-small-x': 'Bass Root Transpose',
-                'knob-small-y': 'Fill Probability'
-            },
-            'down': {
-                'knob-large-computer': 'Spectral Tilt',
-                'knob-small-x': 'Bass Root Pattern Shift',
-                'knob-small-y': 'Bass Mirror Pattern Shift'
-            },
-            'up': {
-                'knob-large-computer': 'Texture / Decimation',
-                'knob-small-x': 'Pattern Variation',
-                'knob-small-y': 'Humanize Range'
-            }
-        },
+        layers: {},
         creator: 'Joep Vermaat',
         license: 'MIT',
         repository: 'https://codeberg.org/johantv/motorik'
@@ -1359,23 +1030,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Left Audio Out',
             'jack-audio2out': 'Right Audio Out'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Fuzz Type',
-                'knob-small-x': 'Fuzz Drive',
-                'knob-small-y': 'Wah Q / Resonance'
-            },
-            'middle': {
-                'knob-large-computer': 'Fuzz Blend',
-                'knob-small-x': 'Fuzz Drive',
-                'knob-small-y': 'Wah Q / Resonance'
-            },
-            'down': {
-                'knob-large-computer': 'Wah Frequency / Auto-Wah Base',
-                'knob-small-x': 'Dry / Wet Blend',
-                'knob-small-y': 'Wah Q / Resonance'
-            }
-        },
+        layers: {},
         creator: 'Joep Vermaat',
         license: 'MIT',
         repository: 'https://codeberg.org/johantv/hot-fuzz'
@@ -1396,19 +1051,7 @@ const CARD_LIBRARY = [
             'jack-cv1out': 'Exciter Amplitude',
             'jack-cv2out': 'Exciter Pitch'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Pitch',
-                'knob-small-x': 'Pitch CV Attenuverter',
-                'knob-small-y': 'Babble Speed'
-            },
-            'middle': {
-                'knob-large-computer': 'Off'
-            },
-            'down': {
-                'knob-large-computer': 'Single Word Trigger'
-            }
-        },
+        layers: {},
         creator: 'Chris Johnson',
         license: 'GPL-3.0',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/78_Talker'
@@ -1430,21 +1073,7 @@ const CARD_LIBRARY = [
             'jack-cv1out': 'Trigger Lane 3',
             'jack-cv2out': 'Aux Output'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Chaos',
-                'knob-small-x': 'Internal BPM',
-                'knob-small-y': 'Swing'
-            },
-            'up': {
-                'knob-large-computer': 'Lane 1 Density',
-                'knob-small-x': 'Lane 2 Density',
-                'knob-small-y': 'Lane 3 Density'
-            },
-            'down': {
-                'knob-large-computer': 'Alt Layer Toggle'
-            }
-        },
+        layers: {},
         creator: 'Phil Miller',
         license: 'GPL-3.0-or-later',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/82_Computer_Grids'
@@ -1492,22 +1121,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Gate',
             'jack-pulse2out': 'Trigger'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Arpeggio Pattern',
-                'knob-small-x': 'Melody Position',
-                'knob-small-y': 'Chord Spacing'
-            },
-            'middle': {
-                'knob-large-computer': 'Root Note',
-                'knob-small-x': 'Melody Position',
-                'knob-small-y': 'Chord Spacing'
-            },
-            'down': {
-                'knob-large-computer': 'Scale Select',
-                'knob-small-y': 'Voice Count'
-            }
-        },
+        layers: {},
         creator: 'Joep Vermaat',
         license: 'MIT',
         repository: 'https://codeberg.org/johantv/Tesserae'
@@ -1552,13 +1166,7 @@ const CARD_LIBRARY = [
             'jack-audio1out': '(unused)',
             'jack-audio2out': '(unused)'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Speed',
-                'knob-small-x': 'Trace X',
-                'knob-small-y': 'Trace Y'
-            }
-        },
+        layers: {},
         creator: 'Kenny Shen',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/90_Pantograph'
@@ -1584,18 +1192,7 @@ const CARD_LIBRARY = [
             'jack-cv1out': 'Voiced Pitch CV',
             'jack-cv2out': 'Chord Event Ramp'
         },
-        layers: {
-            'middle': {
-                'knob-large-computer': 'Timbre',
-                'knob-small-x': 'Root Pitch',
-                'knob-small-y': 'Interval'
-            },
-            'up': {
-                'knob-large-computer': 'Timbre',
-                'knob-small-x': 'Root Pitch',
-                'knob-small-y': 'Preset Cycle / Store'
-            }
-        },
+        layers: {},
         creator: 'Andy Jenkinson (uglifruit)',
         license: '',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/91_chorgan'
@@ -1643,19 +1240,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Station 1 Tuned Gate',
             'jack-pulse2out': 'Station 2 Tuned Gate'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Tuning',
-                'knob-small-x': 'Brightness',
-                'knob-small-y': 'Noise Level'
-            },
-            'down': {
-                'knob-large-computer': 'Cycle Band'
-            },
-            'up': {
-                'knob-large-computer': 'Dead-air / Morse'
-            }
-        },
+        layers: {},
         creator: 'Andy Jenkinson (uglifruit)',
         license: 'CC BY-SA 4.0',
         repository: 'https://github.com/uglifruit/Workshop_Computer'
@@ -1707,23 +1292,7 @@ const CARD_LIBRARY = [
             'jack-pulse1out': 'Clock',
             'jack-pulse2out': 'Accent Trigger'
         },
-        layers: {
-            'up': {
-                'knob-large-computer': 'Length',
-                'knob-small-x': 'Swing',
-                'knob-small-y': 'Tempo'
-            },
-            'middle': {
-                'knob-large-computer': 'Note',
-                'knob-small-x': 'Octave',
-                'knob-small-y': 'Step Mode'
-            },
-            'down': {
-                'knob-large-computer': 'Reset Mode',
-                'knob-small-x': 'Randomise Pitch',
-                'knob-small-y': 'Randomise Step Type'
-            }
-        },
+        layers: {},
         creator: 'Samuel Smith',
         license: 'MIT',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/303_acid'
@@ -1739,25 +1308,598 @@ const CARD_LIBRARY = [
             'jack-audio1out': 'Left',
             'jack-audio2out': 'Right'
         },
-        layers: {
-            'any': {
-                'knob-large-computer': 'Restlessness',
-                'knob-small-x': 'Space',
-                'knob-small-y': 'Amount'
-            },
-            'down': {
-                'knob-large-computer': 'Seat Creak'
-            },
-            'up': {
-                'knob-large-computer': 'Stop / Arm'
-            },
-            'middle': {
-                'knob-large-computer': 'Start'
-            }
-        },
+        layers: {},
         creator: 'Music Thing Modular / AI-assisted',
         license: 'Mixed - source code/reverb components follow their original project licences; embedded BBC Sound Effects audio is subject to BBC Sound Effects Archive licensing',
         repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/433_sense_of_space'
+    },
+    {
+        id: 'comingsoon',
+        name: 'Coming Soon',
+        num: '02',
+        desc: 'Reserved for upcoming project',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'None',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/02_comingsoon'
+    },
+    {
+        id: 'chord_blimey',
+        name: 'Chord Blimey!',
+        num: '05',
+        desc: 'Generates CV/Pulse arpeggios',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-pulse1in': 'Arpeggio Trigger',
+            'jack-cv1in': 'Root Pitch CV',
+            'jack-cv2in': 'Chord Select CV',
+            'jack-cv1out': 'Arpeggio Note CV',
+            'jack-cv2out': 'Root CV',
+            'jack-pulse1out': 'Note Trigger',
+            'jack-pulse2out': 'End-of-Cycle Trigger',
+            'jack-audio1out': 'Random Modulation A',
+            'jack-audio2out': 'Random Modulation B'
+        },
+        layers: {},
+        creator: 'Tom Waters',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/05_chord_blimey'
+    },
+    {
+        id: 'usb_audio',
+        name: 'USB Audio & MIDI',
+        num: '06',
+        desc: '6-Channel USB Audio & MIDI firmware with CV/Gate support',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Audio Input 1',
+            'jack-audio2in': 'Audio Input 2',
+            'jack-cv1in': 'CV Input 1',
+            'jack-cv2in': 'CV Input 2',
+            'jack-pulse1in': 'Pulse Input 1',
+            'jack-pulse2in': 'Pulse Input 2',
+            'jack-audio1out': 'Audio Output 1',
+            'jack-audio2out': 'Audio Output 2',
+            'jack-cv1out': 'CV Output 1',
+            'jack-cv2out': 'CV Output 2',
+            'jack-pulse1out': 'Pulse Output 1',
+            'jack-pulse2out': 'Pulse Output 2'
+        },
+        layers: {},
+        creator: 'Vincent Maurer (vincentmaurer.de)',
+        license: 'GPL-3.0',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/06_usb_audio'
+    },
+    {
+        id: 'bytebeat',
+        name: 'Bytebeat',
+        num: '08',
+        desc: 'Generates and mangles bytebeats',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Parameter 1 Modulation',
+            'jack-audio2in': 'Parameter 2 Modulation',
+            'jack-cv1in': 'Formula Select Modulation',
+            'jack-cv2in': 'Sample Rate Modulation',
+            'jack-pulse1in': 'Reset / Trigger',
+            'jack-pulse2in': 'Reverse Toggle',
+            'jack-audio1out': 'Bytebeat Output',
+            'jack-audio2out': 'Next Bytebeat Output',
+            'jack-cv1out': 'Slow Bytebeat CV',
+            'jack-cv2out': 'Fast Bytebeat CV',
+            'jack-pulse1out': '1-Bit Output',
+            'jack-pulse2out': 'Time Division Clock'
+        },
+        layers: {},
+        creator: 'Matt Kuebrich',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/08_bytebeat'
+    },
+    {
+        id: 'divcom',
+        name: 'DivCom',
+        num: '09',
+        desc: 'Comparator and VC clock divider, inspired by Serge NCOM',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Comparator Signal',
+            'jack-audio2in': 'Comparator Reference',
+            'jack-cv1in': 'Divider Amount CV',
+            'jack-cv2in': 'Count Direction Invert',
+            'jack-pulse1in': 'Divider Clock',
+            'jack-pulse2in': 'Divider Reset',
+            'jack-audio1out': 'Comparator Gate',
+            'jack-audio2out': 'Divider Gate',
+            'jack-pulse1out': 'Divider Flip-Flop',
+            'jack-pulse2out': 'Comparator XOR Divider',
+            'jack-cv1out': 'Counter Pitch CV',
+            'jack-cv2out': 'Divider Value CV'
+        },
+        layers: {},
+        creator: 'divmod',
+        license: '',
+        repository: 'https://github.com/divmod-audio/divcom'
+    },
+    {
+        id: 'twists',
+        name: 'Twists',
+        num: '10',
+        desc: 'A port of Mutable Instruments Braids with a web editor',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'Pitch CV',
+            'jack-pulse1in': 'Trigger',
+            'jack-audio1in': 'Timbre Modulation',
+            'jack-audio2in': 'Color Modulation',
+            'jack-audio1out': 'Main Audio Output'
+        },
+        layers: {},
+        creator: 'Random Works',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/10_twists'
+    },
+    {
+        id: 'am_coupler',
+        name: 'AM Coupler',
+        num: '12',
+        desc: 'AM radio transmitter / coupler',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Modulator Audio 1',
+            'jack-audio2in': 'Modulator Audio 2',
+            'jack-cv1in': 'Fine Tune CV',
+            'jack-pulse1in': 'RF Gate',
+            'jack-audio1out': 'WAV Playback Monitor',
+            'jack-audio2out': 'Modulation Signal Monitor'
+        },
+        layers: {},
+        creator: 'Chris Johnson',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/12_am_coupler'
+    },
+    {
+        id: 'the_bells',
+        name: 'The Bells',
+        num: '16',
+        desc: 'Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1out': 'Pitch',
+            'jack-pulse1out': 'Bell Gate'
+        },
+        layers: {},
+        creator: 'James Saunders',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/16_the_bells'
+    },
+    {
+        id: 'comet',
+        name: 'COMET',
+        num: '17',
+        desc: 'Clocked lo-fi reverb and delay',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Audio In Left',
+            'jack-audio2in': 'Audio In Right',
+            'jack-cv1in': 'X CV',
+            'jack-cv2in': 'Y CV',
+            'jack-pulse1in': 'Clock In',
+            'jack-pulse2in': 'Unused',
+            'jack-audio1out': 'Audio Out Left',
+            'jack-audio2out': 'Audio Out Right',
+            'jack-cv1out': 'Weird Envelope',
+            'jack-cv2out': 'Clocked LFO',
+            'jack-pulse1out': 'Clock Thru',
+            'jack-pulse2out': 'Activity Gate'
+        },
+        layers: {},
+        creator: 'EME',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/17_COMET'
+    },
+    {
+        id: 'chord_organ',
+        name: 'Chord Organ-ish',
+        num: '18',
+        desc: 'Chord Organ-ish - 16 chords, 8 voices, 1V/oct root. Inspired by Music Thing Chord Organ.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'Chord Selection CV',
+            'jack-cv2in': 'Root Pitch CV',
+            'jack-audio1in': 'VCA CV',
+            'jack-pulse1in': 'Progression Trigger',
+            'jack-pulse2in': 'Waveform Trigger',
+            'jack-audio1out': 'Chord Audio Left',
+            'jack-audio2out': 'Chord Audio Right',
+            'jack-cv1out': 'Highest Chord Note',
+            'jack-cv2out': 'Progression Root CV',
+            'jack-pulse1out': 'Chord Change Trigger'
+        },
+        layers: {},
+        creator: 'jkeyworth',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/18_chord_organ'
+    },
+    {
+        id: 'slowmod',
+        name: 'SlowMod',
+        num: '23',
+        desc: 'Chaotic quad-LFO with VCAs',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'VCA Control A',
+            'jack-audio2in': 'VCA Control B',
+            'jack-cv1in': 'VCA Control C',
+            'jack-cv2in': 'VCA Control D',
+            'jack-pulse1in': 'Pause Trigger',
+            'jack-pulse2in': 'Randomize Trigger',
+            'jack-audio1out': 'Fast LFO',
+            'jack-audio2out': 'Mid Fast LFO',
+            'jack-cv1out': 'Mid Slow LFO',
+            'jack-cv2out': 'Slow LFO'
+        },
+        layers: {},
+        creator: 'divmod',
+        license: '',
+        repository: 'https://github.com/divmod-audio/slowmod'
+    },
+    {
+        id: 'esp',
+        name: 'ESP',
+        num: '31',
+        desc: 'A MS-20-style External Signal Processor that includes a preamp, bandpass filter, envelope follower, gate, and 1v/oct pitch outs.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Audio Input',
+            'jack-audio1out': 'Post-Gain Monitor',
+            'jack-audio2out': 'Bandpass Monitor',
+            'jack-cv1out': 'Pitch CV (1V/Oct)',
+            'jack-cv2out': 'Envelope CV',
+            'jack-pulse1out': 'Gate Out',
+            'jack-pulse2out': 'Trigger Out'
+        },
+        layers: {},
+        creator: 'Ben Regnier',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/31_esp'
+    },
+    {
+        id: 'vink',
+        name: 'Vink',
+        num: '32',
+        desc: 'Dual delay loops with sigmoid saturation for Jaap Vink / Roland Kayn style feedback patching',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Audio Input 1',
+            'jack-audio2in': 'Audio Input 2',
+            'jack-cv1in': 'Tap 1 Time Mod',
+            'jack-cv2in': 'Tap 2 Time Mod',
+            'jack-audio1out': 'Delay Tap 1 / Mono Mix',
+            'jack-audio2out': 'Delay Tap 2 / Mono Mix',
+            'jack-cv1out': 'Chaos CV A',
+            'jack-cv2out': 'Chaos CV B',
+            'jack-pulse1out': 'Tap 1 Period Pulse',
+            'jack-pulse2out': 'Tap 2 Period Pulse'
+        },
+        layers: {},
+        creator: 'Ben Regnier',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/32_vink'
+    },
+    {
+        id: 'freqshift',
+        name: 'FreqShift',
+        num: '35',
+        desc: 'Dual Input Frequency Shifter for Feedback Experimentation',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Primary Audio Input',
+            'jack-audio2in': 'Secondary Audio Input',
+            'jack-cv1in': 'Shift Modulation',
+            'jack-cv2in': 'Feedback Path Blend',
+            'jack-audio1out': 'Low Sideband Output',
+            'jack-audio2out': 'High Sideband Output',
+            'jack-cv1out': '-5V Reference',
+            'jack-cv2out': '+5V Reference'
+        },
+        layers: {},
+        creator: 'Ben Regnier',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/35_FreqShift'
+    },
+    {
+        id: 'gradualprocess',
+        name: 'GradualProcess',
+        num: '36',
+        desc: 'Three generative composition processes (Glass, Reich, Tintinnabuli) in one card, chosen by Main\'s position at power-on',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'James Saunders',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/36_GradualProcess'
+    },
+    {
+        id: 'compulidean',
+        name: 'Compulidean',
+        num: '37',
+        desc: 'Generative Euclidean drum + sample player.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'Tristan Rowley',
+        license: '',
+        repository: 'https://github.com/doctea/compulidian'
+    },
+    {
+        id: 'knots',
+        name: 'Knots',
+        num: '39',
+        desc: 'Six-engine oscillator firmware for the Music Thing Workshop System',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'X Modulation Input',
+            'jack-audio2in': 'Y Modulation Input',
+            'jack-cv1in': 'Pitch CV',
+            'jack-cv2in': 'VCA CV',
+            'jack-pulse1in': 'Mode Gate',
+            'jack-pulse2in': 'Engine Advance Clock',
+            'jack-audio1out': 'Audio Output 1',
+            'jack-audio2out': 'Audio Output 2',
+            'jack-cv1out': 'MIDI Pitch CV',
+            'jack-cv2out': 'MIDI CC74 CV',
+            'jack-pulse1out': 'MIDI Gate',
+            'jack-pulse2out': 'Clock Output'
+        },
+        layers: {},
+        creator: 'Jeff Fletcher',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/39_knots'
+    },
+    {
+        id: 'nzt',
+        name: 'NZT',
+        num: '47',
+        desc: 'Grain Noise and Noise Tools',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'Density Modulation CV',
+            'jack-cv2in': 'Seed Modulation CV',
+            'jack-pulse1in': 'Seed Reset Trigger',
+            'jack-pulse2in': 'Sample-and-Hold Clock',
+            'jack-audio1in': 'Ring Mod Input',
+            'jack-audio2in': 'External Noise Source',
+            'jack-audio1out': 'Grain Noise Output A',
+            'jack-audio2out': 'Grain Noise Output B',
+            'jack-cv1out': 'Static Offset CV',
+            'jack-cv2out': 'Sample-and-Hold CV',
+            'jack-pulse2out': 'Periodic Pulse'
+        },
+        layers: {},
+        creator: '@kjnilsson',
+        license: '',
+        repository: 'https://github.com/kjnilsson/ws'
+    },
+    {
+        id: 'krell',
+        name: 'Krell',
+        num: '56',
+        desc: 'Krell',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'Left Pitch Sample Input',
+            'jack-cv2in': 'Right Pitch Sample Input',
+            'jack-audio1out': 'Left AD Envelope',
+            'jack-audio2out': 'Right AD Envelope',
+            'jack-cv1out': 'Left Pitch CV',
+            'jack-cv2out': 'Right Pitch CV',
+            'jack-pulse1out': 'Left End-of-Cycle Pulse',
+            'jack-pulse2out': 'Right End-of-Cycle Pulse'
+        },
+        layers: {},
+        creator: 'Benjamin Reily',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/56_Krell'
+    },
+    {
+        id: 'trace',
+        name: 'Trace',
+        num: '69',
+        desc: 'Oscillograph stereo oscillator',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Modulation Input 1',
+            'jack-audio2in': 'Modulation Input 2',
+            'jack-cv1in': 'Pitch Modulation',
+            'jack-pulse1in': 'Next Bank',
+            'jack-pulse2in': 'Next Oscillator',
+            'jack-audio1out': 'X Channel Audio',
+            'jack-audio2out': 'Y Channel Audio',
+            'jack-pulse1out': 'Switch Advance Trigger',
+            'jack-pulse2out': 'Oscillator Advance Pulse'
+        },
+        layers: {},
+        creator: 'Ruiyang Wang',
+        license: '',
+        repository: 'https://github.com/indiepaleale/Trace-Workshop-Computer'
+    },
+    {
+        id: 'vss',
+        name: 'VSS',
+        num: '73',
+        desc: '6-voice polyphonic µ-law sampler inspired by the Yamaha VSS-30',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Sample / Tuner Input',
+            'jack-audio2in': 'Tuner Mode Enable',
+            'jack-pulse2in': 'Arpeggiator Clock (Gate In 2)',
+            'jack-audio1out': 'Dry Mix',
+            'jack-audio2out': 'Tape Echo',
+            'jack-cv1out': 'Lowest Note CV',
+            'jack-pulse1out': 'Lowest Note Gate (Gate Out 1)',
+            'jack-cv2out': 'Arpeggiator CV',
+            'jack-pulse2out': 'Arpeggiator Gate (Gate Out 2)'
+        },
+        layers: {},
+        creator: '@kjnilsson',
+        license: '',
+        repository: 'https://github.com/kjnilsson/ws'
+    },
+    {
+        id: 'placeholder',
+        name: 'Placeholder',
+        num: '77',
+        desc: 'Reserved for secret project',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'None',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_Placeholder'
+    },
+    {
+        id: 'west_coast_lpg',
+        name: 'West Coast LPG',
+        num: '81',
+        desc: 'Dual vactrol-emulating low-pass gate (combined VCA + low-pass filter) with fast-attack/slow-decay \'plong\', self-pinging percussion, and per-channel VCA/VCF/LPG modes.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'Jason Moore',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/81_West_Coast_LPG'
+    },
+    {
+        id: 'origami',
+        name: 'Origami',
+        num: '83',
+        desc: 'Dual oversampled wavefolder — triangle / sine / hard-clip folding with bias (even-harmonic) control and CV over fold depth, band-limited via 4x oversampling.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'Jason Moore',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/83_Origami'
+    },
+    {
+        id: 'cosmikc1zzl3',
+        name: 'Cosmik C1ZZL3',
+        num: '84',
+        desc: 'Stable phase-distortion synthesiser and Turing machine firmware with Web MIDI envelope readback, PD, detune, eight waveform families, hosted CZ patch import, USB MIDI device/host operation, and optional Turing MIDI output.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-cv1in': 'Phase Distortion',
+            'jack-cv2in': 'Wave Control CV',
+            'jack-pulse1in': 'Ext Turing Clock',
+            'jack-pulse2in': 'Envelope Trig',
+            'jack-cv1out': 'Stepped Turing CV',
+            'jack-cv2out': 'Smoothed Turing CV',
+            'jack-pulse1out': 'Main Turing Pulse',
+            'jack-pulse2out': 'Alternate Turing Pulse'
+        },
+        layers: {},
+        creator: 'Music Thing Modular',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/84_CosmikC1zzl3'
+    },
+    {
+        id: 'blank',
+        name: 'Blank',
+        num: '88',
+        desc: 'Reserved for blank 88 cards',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'Tom Whitwell',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/88_Blank'
+    },
+    {
+        id: 'cathode',
+        name: 'Cathode Ray',
+        num: '96',
+        desc: 'Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-audio1in': 'Scope Input',
+            'jack-audio2in': 'Trigger (FourTrig)',
+            'jack-cv1in': 'Draw X',
+            'jack-cv2in': 'Draw Y',
+            'jack-pulse1in': 'Trigger 1',
+            'jack-pulse2in': 'Trigger 2',
+            'jack-pulse1out': 'Video DAC bit 0',
+            'jack-pulse2out': 'Video DAC bit 1',
+            'jack-cv1out': 'Alt-boot CV',
+            'jack-cv2out': 'Alt-boot Trigger'
+        },
+        layers: {},
+        creator: 'Andy Jenkinson (uglifruit)',
+        license: 'MIT',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/96_cathode'
+    },
+    {
+        id: 'duo_midi',
+        name: 'Duo MIDI',
+        num: '98',
+        desc: 'A duophonic midi device/host interface',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {
+            'jack-pulse1in': 'Env1 Gate',
+            'jack-pulse2in': 'Env 2 Gate',
+            'jack-cv1out': 'Voice 1 Pitch',
+            'jack-cv2out': 'Voice 2 Pitch',
+            'jack-audio1out': 'Voice 1 ASR Envelope',
+            'jack-audio2out': 'Voice 2 ASR Envelope',
+            'jack-pulse1out': 'Voice 1 Trigger/Gate',
+            'jack-pulse2out': 'Voice 2 Trigger/Gate'
+        },
+        layers: {},
+        creator: 'Dune Desormeaux',
+        license: '',
+        repository: 'https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/98_duo_midi'
+    },
+    {
+        id: 'toolbox',
+        name: 'Toolbox',
+        num: '99',
+        desc: 'Mixer, VCA, noise, S&H, clock generator, etc.',
+        class: 'WasmCardWrapper',
+        category: 'Utility',
+        labels: {},
+        layers: {},
+        creator: 'divmod',
+        license: '',
+        repository: 'https://github.com/divmod-audio/toolbox'
     },
 ];
 
