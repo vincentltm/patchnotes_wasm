@@ -3316,10 +3316,10 @@ class WasmComputerProcessor extends AudioWorkletProcessor {
         this.wasmExports = null;
         
         this.activeCardIndex = -1;
-        this.knobMain = 0.0;
-        this.knobX = 0.0;
-        this.knobY = 0.0;
-        this.switchZ = 0;
+        this.knobMain = 0.5;  // Default center — avoids immediate lock release on startup
+        this.knobX = 0.5;
+        this.knobY = 0.5;
+        this.switchZ = 1;  // Default Middle — avoids spurious Down→Middle page-advance on startup
 
         // Jack connection state [audioL, audioR, cv1, cv2, pulse1, pulse2]
         // Matches ComputerCard.h g_input_connected[6] ordering.
@@ -3438,20 +3438,39 @@ class WasmComputerProcessor extends AudioWorkletProcessor {
                         }
                     }
 
-                    this.wasmExports._init_card(this.activeCardIndex);
-                    if (this.wasmExports._set_input_connected) {
-                        this.wasmExports._set_input_connected(
-                            this.inputConnected[0], this.inputConnected[1],
-                            this.inputConnected[2], this.inputConnected[3],
-                            this.inputConnected[4], this.inputConnected[5]
-                        );
+                    try {
+                        this.hasLoggedProcessError = false;
+                        this.wasmExports._init_card(this.activeCardIndex);
+                        if (this.wasmExports._set_input_connected) {
+                            this.wasmExports._set_input_connected(
+                                this.inputConnected[0], this.inputConnected[1],
+                                this.inputConnected[2], this.inputConnected[3],
+                                this.inputConnected[4], this.inputConnected[5]
+                            );
+                        }
+                    } catch (err) {
+                        console.error("[WasmComputerProcessor] Error during _init_card for card index " + this.activeCardIndex + ":", err);
+                        // Reset emulated flash memory to 0xFF (clean) and retry
+                        const flashPtr = this.wasmExports._get_flash_ptr ? this.wasmExports._get_flash_ptr() : 0;
+                        const flashSize = this.wasmExports._get_flash_size ? this.wasmExports._get_flash_size() : 0;
+                        if (flashPtr && flashSize) {
+                            new Uint8Array(this.wasmExports.HEAPU8.buffer, flashPtr, flashSize).fill(0xFF);
+                            console.log("[WasmComputerProcessor] Reset flash memory to clean 0xFF and retrying _init_card...");
+                            try {
+                                this.wasmExports._init_card(this.activeCardIndex);
+                            } catch (e2) {
+                                console.error("[WasmComputerProcessor] Re-init retry also failed:", e2);
+                            }
+                        }
                     }
                 }
             } else if (data.type === 'unload_card') {
-                this.activeCardIndex = -1;
                 if (this.wasmExports) {
-                    this.wasmExports._init_card(-1);
+                    try {
+                        this.wasmExports._init_card(-1);
+                    } catch (e) {}
                 }
+                this.activeCardIndex = -1;
             } else if (data.type === 'controls') {
                 this.knobMain = data.knobMain;
                 this.knobX = data.knobX;
@@ -4739,7 +4758,7 @@ function updateAudioParams() {
             x: getNorm('knob-small-x'),
             y: getNorm('knob-small-y'),
             main: getNorm('knob-large-computer'),
-            switch: componentStates['switch-3way-computer']?.value || 0
+            switch: 2 - (componentStates['switch-3way-computer']?.value ?? 1)
         };
 
         activeComputerCard.update(params, now);
@@ -4893,7 +4912,9 @@ function updateAudioParams() {
     const b2 = componentStates['button-2']?.value || 0;
     const b3 = componentStates['button-3']?.value || 0;
     const b4 = componentStates['button-4']?.value || 0;
-    const btnIndex = b1 | (b2 << 1) | (b3 << 2) | (b4 << 3);
+    // Map buttons to match K1=b1, K2=b2, K3=b3, K4=b4 calibration order:
+    // K4 (bit 0), K3 (bit 1), K2 (bit 2), K1 (bit 3)
+    const btnIndex = b4 | (b3 << 1) | (b2 << 2) | (b1 << 3);
     const voltKnobAngle = componentStates['knob-small-voltagesBlend'] ? parseFloat(componentStates['knob-small-voltagesBlend'].value) : 0;
 
     safeParam(audioNodes['Volt1'].offset, getInterpolatedVoltage(voltKnobAngle, btnIndex, 0), now);

@@ -94,9 +94,9 @@ def parse_yaml(yaml_path):
             k, v = stripped.split(":", 1)
             k = k.strip().lower()
             v = v.strip().strip("'\"")
-            if k == "name":
+            if k in ["title", "name"] and not result["name"]:
                 result["name"] = v
-            elif k in ["description", "summary"]:
+            elif k in ["short-description", "description", "summary"] and not result["desc"]:
                 v_strip = v.strip() if v else ""
                 if v_strip in ["|", ">", "|-", ">-"]:
                     multiline_target = ("desc",)
@@ -104,11 +104,11 @@ def parse_yaml(yaml_path):
                     multiline_indent = None
                 else:
                     result["desc"] = v
-            elif k == "creator":
+            elif k == "creator" and not result["creator"]:
                 result["creator"] = v
-            elif k == "license":
+            elif k == "license" and not result["license"]:
                 result["license"] = v
-            elif k == "repository":
+            elif k == "repository" and not result["repository"]:
                 result["repository"] = v
             elif k in ["panel", "controls"]:
                 current_section = k
@@ -282,6 +282,12 @@ def main():
                     card_id = id_match.group(1)
                     num = num_match.group(1)
                     
+                    whitelisted_card_ids = set(c["id"] for c in CARD_WHITELIST)
+                    if card_id not in whitelisted_card_ids:
+                        print(f"Removing unwhitelisted/unbuilt card from definitions: {card_id}")
+                        continue
+                        
+                    existing_ids.add(card_id)
                     # Find info.yaml folder
                     folder_name = ""
                     yaml_path = ""
@@ -352,6 +358,8 @@ def main():
 
                     cleaned_lines = []
                     closing_line = card_lines[-1]
+                    if closing_line.strip() == "}":
+                        closing_line = "    },\n"
                     
                     in_labels = False
                     in_layers = False
@@ -502,14 +510,17 @@ def main():
         creator: '{escaped_creator}',
         license: '{lic}',
         repository: '{repo}'
-    }}
+    }},
 """
                     output_lines.append(new_card_obj)
             
         output_lines.append(line)
         
+    full_text = "".join(output_lines)
+    full_text = re.sub(r"(\n\s*\})\s*(\n\s*\{)", r"\1,\2", full_text)
+    
     with open(DEFINITIONS_PATH, "w", encoding="utf-8") as f:
-        f.writelines(output_lines)
+        f.write(full_text)
         
     print("Successfully updated CardDefinitions.js line-by-line!")
 

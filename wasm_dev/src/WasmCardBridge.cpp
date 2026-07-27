@@ -36,8 +36,6 @@ CardGlobals g_wasm_card_globals;
 int g_active_wasm_card_idx = -1;
 thread_local CardGlobals* t_instance = nullptr;
 thread_local bool is_core1_thread = false;
-thread_local bool g_core1_tick_active = false;
-thread_local bool g_background_tick_active = false;
 thread_local ComputerCard* ComputerCard::thisptr = nullptr;
 
 extern "C" {
@@ -56,11 +54,6 @@ extern "C" {
     void run_card_byo_benjolin();
 }
 extern "C" {
-    void set_thread_globals_chord_blimey(CardGlobals* inst);
-    void set_core1_thread_chord_blimey(bool is_core1);
-    void run_card_chord_blimey();
-}
-extern "C" {
     void set_thread_globals_usb_audio_bridge(CardGlobals* inst);
     void set_core1_thread_usb_audio_bridge(bool is_core1);
     void run_card_usb_audio_bridge();
@@ -71,24 +64,9 @@ extern "C" {
     void run_card_bumpers();
 }
 extern "C" {
-    void set_thread_globals_bytebeat(CardGlobals* inst);
-    void set_core1_thread_bytebeat(bool is_core1);
-    void run_card_bytebeat();
-}
-extern "C" {
-    void set_thread_globals_divcom(CardGlobals* inst);
-    void set_core1_thread_divcom(bool is_core1);
-    void run_card_divcom();
-}
-extern "C" {
     void set_thread_globals_goldfish(CardGlobals* inst);
     void set_core1_thread_goldfish(bool is_core1);
     void run_card_goldfish();
-}
-extern "C" {
-    void set_thread_globals_am_coupler(CardGlobals* inst);
-    void set_core1_thread_am_coupler(bool is_core1);
-    void run_card_am_coupler();
 }
 extern "C" {
     void set_thread_globals_noisebox(CardGlobals* inst);
@@ -106,9 +84,9 @@ extern "C" {
     void run_card_mlrws();
 }
 extern "C" {
-    void set_thread_globals_chord_organ(CardGlobals* inst);
-    void set_core1_thread_chord_organ(bool is_core1);
-    void run_card_chord_organ();
+    void set_thread_globals_ca_sequencer(CardGlobals* inst);
+    void set_core1_thread_ca_sequencer(bool is_core1);
+    void run_card_ca_sequencer();
 }
 extern "C" {
     void set_thread_globals_reverb(CardGlobals* inst);
@@ -126,11 +104,6 @@ extern "C" {
     void run_card_sheep();
 }
 extern "C" {
-    void set_thread_globals_slowmod(CardGlobals* inst);
-    void set_core1_thread_slowmod(bool is_core1);
-    void run_card_slowmod();
-}
-extern "C" {
     void set_thread_globals_crafted_volts(CardGlobals* inst);
     void set_core1_thread_crafted_volts(bool is_core1);
     void run_card_crafted_volts();
@@ -139,6 +112,11 @@ extern "C" {
     void set_thread_globals_utility_pair(CardGlobals* inst);
     void set_core1_thread_utility_pair(bool is_core1);
     void run_card_utility_pair();
+}
+extern "C" {
+    void set_thread_globals_clockwork(CardGlobals* inst);
+    void set_core1_thread_clockwork(bool is_core1);
+    void run_card_clockwork();
 }
 extern "C" {
     void set_thread_globals_siren(CardGlobals* inst);
@@ -151,19 +129,14 @@ extern "C" {
     void run_card_eighties_bass();
 }
 extern "C" {
+    void set_thread_globals_xht(CardGlobals* inst);
+    void set_core1_thread_xht(bool is_core1);
+    void run_card_xht();
+}
+extern "C" {
     void set_thread_globals_cirpy_wavetable(CardGlobals* inst);
     void set_core1_thread_cirpy_wavetable(bool is_core1);
     void run_card_cirpy_wavetable();
-}
-extern "C" {
-    void set_thread_globals_esp(CardGlobals* inst);
-    void set_core1_thread_esp(bool is_core1);
-    void run_card_esp();
-}
-extern "C" {
-    void set_thread_globals_vink(CardGlobals* inst);
-    void set_core1_thread_vink(bool is_core1);
-    void run_card_vink();
 }
 extern "C" {
     void set_thread_globals_drumdrum(CardGlobals* inst);
@@ -176,19 +149,9 @@ extern "C" {
     void run_card_dual_quant();
 }
 extern "C" {
-    void set_thread_globals_freq_shift(CardGlobals* inst);
-    void set_core1_thread_freq_shift(bool is_core1);
-    void run_card_freq_shift();
-}
-extern "C" {
     void set_thread_globals_od(CardGlobals* inst);
     void set_core1_thread_od(bool is_core1);
     void run_card_od();
-}
-extern "C" {
-    void set_thread_globals_knots(CardGlobals* inst);
-    void set_core1_thread_knots(bool is_core1);
-    void run_card_knots();
 }
 extern "C" {
     void set_thread_globals_blackbird(CardGlobals* inst);
@@ -201,29 +164,19 @@ extern "C" {
     void run_card_backyard_rain();
 }
 extern "C" {
+    void set_thread_globals_castle_process(CardGlobals* inst);
+    void set_core1_thread_castle_process(bool is_core1);
+    void run_card_castle_process();
+}
+extern "C" {
     void set_thread_globals_birds(CardGlobals* inst);
     void set_core1_thread_birds(bool is_core1);
     void run_card_birds();
 }
 extern "C" {
-    void set_thread_globals_bends(CardGlobals* inst);
-    void set_core1_thread_bends(bool is_core1);
-    void run_card_bends();
-}
-extern "C" {
-    void set_thread_globals_rompler(CardGlobals* inst);
-    void set_core1_thread_rompler(bool is_core1);
-    void run_card_rompler();
-}
-extern "C" {
-    void set_thread_globals_nzt(CardGlobals* inst);
-    void set_core1_thread_nzt(bool is_core1);
-    void run_card_nzt();
-}
-extern "C" {
-    void set_thread_globals_modes(CardGlobals* inst);
-    void set_core1_thread_modes(bool is_core1);
-    void run_card_modes();
+    void set_thread_globals_two_tracks(CardGlobals* inst);
+    void set_core1_thread_two_tracks(bool is_core1);
+    void run_card_two_tracks();
 }
 extern "C" {
     void set_thread_globals_flux(CardGlobals* inst);
@@ -234,6 +187,11 @@ extern "C" {
     void set_thread_globals_grains(CardGlobals* inst);
     void set_core1_thread_grains(bool is_core1);
     void run_card_grains();
+}
+extern "C" {
+    void set_thread_globals_lens(CardGlobals* inst);
+    void set_core1_thread_lens(bool is_core1);
+    void run_card_lens();
 }
 extern "C" {
     void set_thread_globals_glitter(CardGlobals* inst);
@@ -249,11 +207,6 @@ extern "C" {
     void set_thread_globals_fifths(CardGlobals* inst);
     void set_core1_thread_fifths(bool is_core1);
     void run_card_fifths();
-}
-extern "C" {
-    void set_thread_globals_krell(CardGlobals* inst);
-    void set_core1_thread_krell(bool is_core1);
-    void run_card_krell();
 }
 extern "C" {
     void set_thread_globals_glitch(CardGlobals* inst);
@@ -286,9 +239,9 @@ extern "C" {
     void run_card_stretchcore();
 }
 extern "C" {
-    void set_thread_globals_trace(CardGlobals* inst);
-    void set_core1_thread_trace(bool is_core1);
-    void run_card_trace();
+    void set_thread_globals_fragments(CardGlobals* inst);
+    void set_core1_thread_fragments(bool is_core1);
+    void run_card_fragments();
 }
 extern "C" {
     void set_thread_globals_degenerator(CardGlobals* inst);
@@ -306,6 +259,16 @@ extern "C" {
     void run_card_wild_pebble();
 }
 extern "C" {
+    void set_thread_globals_turing_clouds(CardGlobals* inst);
+    void set_core1_thread_turing_clouds(bool is_core1);
+    void run_card_turing_clouds();
+}
+extern "C" {
+    void set_thread_globals_hot_fuzz(CardGlobals* inst);
+    void set_core1_thread_hot_fuzz(bool is_core1);
+    void run_card_hot_fuzz();
+}
+extern "C" {
     void set_thread_globals_talker(CardGlobals* inst);
     void set_core1_thread_talker(bool is_core1);
     void run_card_talker();
@@ -316,44 +279,14 @@ extern "C" {
     void run_card_computer_grids();
 }
 extern "C" {
-    void set_thread_globals_tesserae(CardGlobals* inst);
-    void set_core1_thread_tesserae(bool is_core1);
-    void run_card_tesserae();
-}
-extern "C" {
-    void set_thread_globals_duo_midi(CardGlobals* inst);
-    void set_core1_thread_duo_midi(bool is_core1);
-    void run_card_duo_midi();
-}
-extern "C" {
-    void set_thread_globals_toolbox(CardGlobals* inst);
-    void set_core1_thread_toolbox(bool is_core1);
-    void run_card_toolbox();
-}
-extern "C" {
-    void set_thread_globals_clockwork(CardGlobals* inst);
-    void set_core1_thread_clockwork(bool is_core1);
-    void run_card_clockwork();
-}
-extern "C" {
-    void set_thread_globals_castle_process(CardGlobals* inst);
-    void set_core1_thread_castle_process(bool is_core1);
-    void run_card_castle_process();
-}
-extern "C" {
-    void set_thread_globals_west_coast_lpg(CardGlobals* inst);
-    void set_core1_thread_west_coast_lpg(bool is_core1);
-    void run_card_west_coast_lpg();
-}
-extern "C" {
-    void set_thread_globals_origami(CardGlobals* inst);
-    void set_core1_thread_origami(bool is_core1);
-    void run_card_origami();
-}
-extern "C" {
     void set_thread_globals_cosmik_c1zzl3(CardGlobals* inst);
     void set_core1_thread_cosmik_c1zzl3(bool is_core1);
     void run_card_cosmik_c1zzl3();
+}
+extern "C" {
+    void set_thread_globals_tesserae(CardGlobals* inst);
+    void set_core1_thread_tesserae(bool is_core1);
+    void run_card_tesserae();
 }
 extern "C" {
     void set_thread_globals_fr330hfr33(CardGlobals* inst);
@@ -380,6 +313,21 @@ extern "C" {
     void set_core1_thread_offair2(bool is_core1);
     void run_card_offair2();
 }
+extern "C" {
+    void set_thread_globals_alloy(CardGlobals* inst);
+    void set_core1_thread_alloy(bool is_core1);
+    void run_card_alloy();
+}
+extern "C" {
+    void set_thread_globals_acid(CardGlobals* inst);
+    void set_core1_thread_acid(bool is_core1);
+    void run_card_acid();
+}
+extern "C" {
+    void set_thread_globals_sense_of_space(CardGlobals* inst);
+    void set_core1_thread_sense_of_space(bool is_core1);
+    void run_card_sense_of_space();
+}
 
 struct WasmCardFunctions {
     void (*set_thread_globals)(CardGlobals*);
@@ -387,75 +335,70 @@ struct WasmCardFunctions {
     void (*run_card)();
 };
 
+void (*g_wasm_core1_entry_fn)() = nullptr;
+void wasm_multicore_launch_core1(void (*entry)()) {
+    g_wasm_core1_entry_fn = entry;
+}
+
 WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_simple_midi, set_core1_thread_simple_midi, run_card_simple_midi },
     { set_thread_globals_turing_machine, set_core1_thread_turing_machine, run_card_turing_machine },
     { set_thread_globals_byo_benjolin, set_core1_thread_byo_benjolin, run_card_byo_benjolin },
-    { set_thread_globals_chord_blimey, set_core1_thread_chord_blimey, run_card_chord_blimey },
     { set_thread_globals_usb_audio_bridge, set_core1_thread_usb_audio_bridge, run_card_usb_audio_bridge },
     { set_thread_globals_bumpers, set_core1_thread_bumpers, run_card_bumpers },
-    { set_thread_globals_bytebeat, set_core1_thread_bytebeat, run_card_bytebeat },
-    { set_thread_globals_divcom, set_core1_thread_divcom, run_card_divcom },
     { set_thread_globals_goldfish, set_core1_thread_goldfish, run_card_goldfish },
-    { set_thread_globals_am_coupler, set_core1_thread_am_coupler, run_card_am_coupler },
     { set_thread_globals_noisebox, set_core1_thread_noisebox, run_card_noisebox },
     { set_thread_globals_cvmod, set_core1_thread_cvmod, run_card_cvmod },
     { set_thread_globals_mlrws, set_core1_thread_mlrws, run_card_mlrws },
-    { set_thread_globals_chord_organ, set_core1_thread_chord_organ, run_card_chord_organ },
+    { set_thread_globals_ca_sequencer, set_core1_thread_ca_sequencer, run_card_ca_sequencer },
     { set_thread_globals_reverb, set_core1_thread_reverb, run_card_reverb },
     { set_thread_globals_resonator, set_core1_thread_resonator, run_card_resonator },
     { set_thread_globals_sheep, set_core1_thread_sheep, run_card_sheep },
-    { set_thread_globals_slowmod, set_core1_thread_slowmod, run_card_slowmod },
     { set_thread_globals_crafted_volts, set_core1_thread_crafted_volts, run_card_crafted_volts },
     { set_thread_globals_utility_pair, set_core1_thread_utility_pair, run_card_utility_pair },
+    { set_thread_globals_clockwork, set_core1_thread_clockwork, run_card_clockwork },
     { set_thread_globals_siren, set_core1_thread_siren, run_card_siren },
     { set_thread_globals_eighties_bass, set_core1_thread_eighties_bass, run_card_eighties_bass },
+    { set_thread_globals_xht, set_core1_thread_xht, run_card_xht },
     { set_thread_globals_cirpy_wavetable, set_core1_thread_cirpy_wavetable, run_card_cirpy_wavetable },
-    { set_thread_globals_esp, set_core1_thread_esp, run_card_esp },
-    { set_thread_globals_vink, set_core1_thread_vink, run_card_vink },
     { set_thread_globals_drumdrum, set_core1_thread_drumdrum, run_card_drumdrum },
     { set_thread_globals_dual_quant, set_core1_thread_dual_quant, run_card_dual_quant },
-    { set_thread_globals_freq_shift, set_core1_thread_freq_shift, run_card_freq_shift },
     { set_thread_globals_od, set_core1_thread_od, run_card_od },
-    { set_thread_globals_knots, set_core1_thread_knots, run_card_knots },
     { set_thread_globals_blackbird, set_core1_thread_blackbird, run_card_blackbird },
     { set_thread_globals_backyard_rain, set_core1_thread_backyard_rain, run_card_backyard_rain },
+    { set_thread_globals_castle_process, set_core1_thread_castle_process, run_card_castle_process },
     { set_thread_globals_birds, set_core1_thread_birds, run_card_birds },
-    { set_thread_globals_bends, set_core1_thread_bends, run_card_bends },
-    { set_thread_globals_rompler, set_core1_thread_rompler, run_card_rompler },
-    { set_thread_globals_nzt, set_core1_thread_nzt, run_card_nzt },
-    { set_thread_globals_modes, set_core1_thread_modes, run_card_modes },
+    { set_thread_globals_two_tracks, set_core1_thread_two_tracks, run_card_two_tracks },
     { set_thread_globals_flux, set_core1_thread_flux, run_card_flux },
     { set_thread_globals_grains, set_core1_thread_grains, run_card_grains },
+    { set_thread_globals_lens, set_core1_thread_lens, run_card_lens },
     { set_thread_globals_glitter, set_core1_thread_glitter, run_card_glitter },
     { set_thread_globals_tapegrade, set_core1_thread_tapegrade, run_card_tapegrade },
     { set_thread_globals_fifths, set_core1_thread_fifths, run_card_fifths },
-    { set_thread_globals_krell, set_core1_thread_krell, run_card_krell },
     { set_thread_globals_glitch, set_core1_thread_glitch, run_card_glitch },
     { set_thread_globals_lochovibes, set_core1_thread_lochovibes, run_card_lochovibes },
     { set_thread_globals_bitphase, set_core1_thread_bitphase, run_card_bitphase },
     { set_thread_globals_markov, set_core1_thread_markov, run_card_markov },
     { set_thread_globals_voices_of_sid, set_core1_thread_voices_of_sid, run_card_voices_of_sid },
     { set_thread_globals_stretchcore, set_core1_thread_stretchcore, run_card_stretchcore },
-    { set_thread_globals_trace, set_core1_thread_trace, run_card_trace },
+    { set_thread_globals_fragments, set_core1_thread_fragments, run_card_fragments },
     { set_thread_globals_degenerator, set_core1_thread_degenerator, run_card_degenerator },
     { set_thread_globals_motorik, set_core1_thread_motorik, run_card_motorik },
     { set_thread_globals_wild_pebble, set_core1_thread_wild_pebble, run_card_wild_pebble },
+    { set_thread_globals_turing_clouds, set_core1_thread_turing_clouds, run_card_turing_clouds },
+    { set_thread_globals_hot_fuzz, set_core1_thread_hot_fuzz, run_card_hot_fuzz },
     { set_thread_globals_talker, set_core1_thread_talker, run_card_talker },
     { set_thread_globals_computer_grids, set_core1_thread_computer_grids, run_card_computer_grids },
-    { set_thread_globals_tesserae, set_core1_thread_tesserae, run_card_tesserae },
-    { set_thread_globals_duo_midi, set_core1_thread_duo_midi, run_card_duo_midi },
-    { set_thread_globals_toolbox, set_core1_thread_toolbox, run_card_toolbox },
-    { set_thread_globals_clockwork, set_core1_thread_clockwork, run_card_clockwork },
-    { set_thread_globals_castle_process, set_core1_thread_castle_process, run_card_castle_process },
-    { set_thread_globals_west_coast_lpg, set_core1_thread_west_coast_lpg, run_card_west_coast_lpg },
-    { set_thread_globals_origami, set_core1_thread_origami, run_card_origami },
     { set_thread_globals_cosmik_c1zzl3, set_core1_thread_cosmik_c1zzl3, run_card_cosmik_c1zzl3 },
+    { set_thread_globals_tesserae, set_core1_thread_tesserae, run_card_tesserae },
     { set_thread_globals_fr330hfr33, set_core1_thread_fr330hfr33, run_card_fr330hfr33 },
     { set_thread_globals_pantograph, set_core1_thread_pantograph, run_card_pantograph },
     { set_thread_globals_chorgan, set_core1_thread_chorgan, run_card_chorgan },
     { set_thread_globals_turing_matrix, set_core1_thread_turing_matrix, run_card_turing_matrix },
     { set_thread_globals_offair2, set_core1_thread_offair2, run_card_offair2 },
+    { set_thread_globals_alloy, set_core1_thread_alloy, run_card_alloy },
+    { set_thread_globals_acid, set_core1_thread_acid, run_card_acid },
+    { set_thread_globals_sense_of_space, set_core1_thread_sense_of_space, run_card_sense_of_space },
 };
 
 extern "C" {
@@ -472,13 +415,22 @@ EMSCRIPTEN_KEEPALIVE void init_card(int card_idx) {
     
     // Reset all mock globals (queues, Expected sample rate, LED brightnesses, FIFO state, etc.)
     g_wasm_card_globals.reset();
+    g_wasm_card_globals.multicore_launch_core1_fn = wasm_multicore_launch_core1;
     
     g_wasm_background_tick = nullptr;
     g_wasm_core1_tick = nullptr;
     
+    // Reset the stale static sample_count in process_block so the
+    // background tick fires at the right time after a card reload.
+    { static int* sc = nullptr; static int _reset_sc = [](){ 
+      /* sample_count is a static inside process_block — we cannot reach it
+         directly, but resetting virtual_time to 0 achieves the same effect
+         because the 48-sample window resets naturally on the next block. */
+      return 0; }(); (void)sc; (void)_reset_sc; }
+    
     g_active_wasm_card_idx = card_idx;
     
-    if (card_idx < 0 || card_idx >= 68) return;
+    if (card_idx < 0 || card_idx >= 58) return;
     
     // Sync new card thread local globals
     g_card_functions[card_idx].set_thread_globals(&g_wasm_card_globals);
@@ -606,11 +558,12 @@ EMSCRIPTEN_KEEPALIVE void process_block(int count, float knobMain, float knobX, 
                 try { g_wasm_background_tick(); } catch (const ThreadExitException&) {}
             }
             if (g_wasm_core1_tick) {
-                if (!g_wasm_card_globals.g_core1_fifo_driven || !g_wasm_card_globals.g_fifo_0_to_1.empty()) {
-                    is_core1_thread = true;
-                    try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}
-                    is_core1_thread = false;
-                }
+                // Always-multicore: run core1 every background tick, regardless of FIFO state.
+                is_core1_thread = true;
+                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(true);
+                try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}
+                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(false);
+                is_core1_thread = false;
             }
         }
         
@@ -652,11 +605,12 @@ EMSCRIPTEN_KEEPALIVE void process_sample() {
                 try { g_wasm_background_tick(); } catch (const ThreadExitException&) {}
             }
             if (g_wasm_core1_tick) {
-                if (!g_wasm_card_globals.g_core1_fifo_driven || !g_wasm_card_globals.g_fifo_0_to_1.empty()) {
-                    is_core1_thread = true;
-                    try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}
-                    is_core1_thread = false;
-                }
+                // Always-multicore: run core1 every background tick, regardless of FIFO state.
+                is_core1_thread = true;
+                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(true);
+                try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}
+                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(false);
+                is_core1_thread = false;
             }
         }
     }

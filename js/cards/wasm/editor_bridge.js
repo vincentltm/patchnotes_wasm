@@ -47,6 +47,38 @@
         }
     }
 
+    const pathParts = window.location.pathname.split('/');
+    const webIdx = pathParts.indexOf("web");
+    const cardId = webIdx !== -1 ? pathParts[webIdx + 1] : "";
+
+    const CARD_MIDI_NAMES = {
+        'simple_midi': 'Simple MIDI',
+        'duo_midi': 'Duo MIDI',
+        'krell': 'Krell',
+        'blackbird': 'Blackbird',
+        'flux': 'Flux',
+        'drumdrum': 'DrumDrum',
+        'twists': 'Twists',
+        'reverb': 'Reverb',
+        'bends': 'Bends',
+        'modes': 'Modes',
+        'grains': 'Grains',
+        'stretchcore': 'Stretchcore',
+        'degenerator': 'Degenerator',
+        'computer_grids': 'Computer Grids',
+        'rompler': 'Rompler',
+        'clockwork': 'Clockwork',
+        'cosmik_c1zzl3': 'Cosmik C1zzl3',
+        'fr330hfr33': 'Fr330hfr33',
+        'turing_matrix': 'Turing Matrix',
+        'turing_machine': 'Turing Machine',
+        'lens': 'Lens'
+    };
+
+    const activeName = CARD_MIDI_NAMES[cardId] || "Workshop Computer";
+    const deviceName = `MTMComputer ${activeName} Input`;
+    const deviceNameOut = `MTMComputer ${activeName} Output`;
+
     class MockMIDIAccess extends EventTarget {
         constructor() {
             super();
@@ -54,8 +86,8 @@
             this.outputs = new Map();
             this.sysexEnabled = true;
 
-            const virtualInput = new MockMIDIInput('virtual-card-input', 'MTMComputer (Flux, DrumDrum, Twists, MLRws, Blackbird, Clockwork MIDI) Input');
-            const virtualOutput = new MockMIDIOutput('virtual-card-output', 'MTMComputer (Flux, DrumDrum, Twists, MLRws, Blackbird, Clockwork MIDI) Output');
+            const virtualInput = new MockMIDIInput('virtual-card-input', deviceName);
+            const virtualOutput = new MockMIDIOutput('virtual-card-output', deviceNameOut);
 
             this.inputs.set(virtualInput.id, virtualInput);
             this.outputs.set(virtualOutput.id, virtualOutput);

@@ -48,17 +48,31 @@ function handlePwaUninstall() {
     }
 }
 
-// --- 1. Service Worker Registration --------------------------------------
+// URL Parameter Cache Reset Check
+if (window.location.search.includes('clear_cache=1') || window.location.search.includes('reset=1')) {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) registration.unregister();
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+                console.log('[PWA] Purged all service worker registrations & caches!');
+                window.location.href = window.location.pathname;
+            });
+        });
+    }
+}
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
+        navigator.serviceWorker.register('sw.js?v=3.0')
             .then(registration => {
                 console.log('[PWA] Service Worker registered:', registration.scope);
+                registration.update(); // Force check for sw.js updates on every page load
 
                 // Check if update is waiting
                 if (registration.waiting) {
-                    console.log('[PWA] Service worker waiting');
+                    console.log('[PWA] Service worker waiting -> auto applying update');
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
                     pwaAction = 'update';
                     updatePwaButton();
                 }
@@ -72,13 +86,10 @@ if ('serviceWorker' in navigator) {
                         console.log('[PWA] New worker state changed to:', newWorker.state);
                         if (newWorker.state === 'installed') {
                             if (navigator.serviceWorker.controller) {
-                                // New update available
-                                console.log('[PWA] Update installed and waiting.');
+                                console.log('[PWA] Update installed. Applying skipWaiting...');
+                                if (newWorker) newWorker.postMessage({ type: 'SKIP_WAITING' });
                                 pwaAction = 'update';
                                 updatePwaButton();
-                            } else {
-                                // Content cached for offline use
-                                console.log('[PWA] Content cached for offline use.');
                             }
                         }
                     });
@@ -91,13 +102,8 @@ if ('serviceWorker' in navigator) {
 
     // Detect controller change (when new SW takes over)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (sessionStorage.getItem('pwa_update_initiated') === 'true') {
-            sessionStorage.removeItem('pwa_update_initiated');
-            console.log('[PWA] Controller changed, reloading page...');
-            window.location.reload();
-        } else {
-            console.log('[PWA] Controller changed silently, skipping auto-reload to protect user patch.');
-        }
+        console.log('[PWA] Controller changed, reloading page for fresh assets...');
+        window.location.reload();
     });
 }
 

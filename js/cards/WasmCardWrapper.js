@@ -4,71 +4,61 @@ const WASM_CARD_MAP = {
     'midi':              0,  // simple_midi
     'turing_machine':    1,
     'byo_benjolin':      2,
-    'chord_blimey':      3,
-    'usb_audio':         4,  // usb_audio_bridge
-    'bumpers':           5,
-    'bytebeat':          6,
-    'divcom':            7,
-    'goldfish':          8,
-    'am_coupler':        9,
-    'noisebox':          10,
-    'cvmod':             11,
-    'mlrws':             12,
-    'chord_organ':       13,
-    'reverb':            14,
-    'resonator':         15,
-    'sheep':             16,
-    'slowmod':           17,
-    'crafted_volts':     18,
-    'utility_pair':      19,
-    'siren':             20,
-    'eighties_bass':     21,
-    'cirpy_wavetable':   22,
-    'esp':               23,
-    'vink':              24,
-    'drumdrum':          25,
-    'dual_quant':        26,
-    'freq_shift':        27,
-    'od':                28,
-    'knots':             29,
-    'blackbird':         30,
-    'backyard_rain':     31,
-    'birds':             32,
-    'bends':             33,
-    'rompler':           34,
-    'nzt':               35,
-    'modes':             36,
-    'flux':              37,
-    'grains':            38,
-    'glitter':           39,
-    'tapegrade':         40,
-    'fifths':            41,
-    'krell':             42,
-    'glitch':            43,
-    'lochovibes':        44,
-    'bitphase':          45,
-    'markov':            46,
-    'voices_of_sid':     47,
-    'stretchcore':       48,
-    'trace':             49,
-    'degenerator':       50,
-    'motorik':           51,
-    'wild_pebble':       52,
-    'talker':            53,
-    'computer_grids':    54,
-    'tesserae':          55,
-    'duo_midi':          56,
-    'toolbox':           57,
-    'clockwork':         58,
-    'castle_process':    59,
-    'west_coast_lpg':    60,
-    'origami':           61,
-    'cosmik_c1zzl3':     62,
-    'fr330hfr33':        63,
-    'pantograph':        64,
-    'chorgan':           65,
-    'turing_matrix':     66,
-    'offair2':           67,
+    'usb_audio':         3,  // usb_audio_bridge
+    'bumpers':           4,
+    'goldfish':          5,
+    'noisebox':          6,
+    'cvmod':             7,
+    'mlrws':             8,
+    'ca_sequencer':      9,
+    'reverb':            10,
+    'resonator':         11,
+    'sheep':             12,
+    'crafted_volts':     13,
+    'utility_pair':      14,
+    'clockwork':         15,
+    'siren':             16,
+    'eighties_bass':     17,
+    'xht':               18,
+    'cirpy_wavetable':   19,
+    'drumdrum':          20,
+    'dual_quant':        21,
+    'od':                22,
+    'blackbird':         23,
+    'backyard_rain':     24,
+    'castle_process':    25,
+    'birds':             26,
+    'two_tracks':        27,
+    'flux':              28,
+    'grains':            29,
+    'lens':              30,
+    'glitter':           31,
+    'tapegrade':         32,
+    'fifths':            33,
+    'glitch':            34,
+    'lochovibes':        35,
+    'bitphase':          36,
+    'markov':            37,
+    'voices_of_sid':     38,
+    'stretchcore':       39,
+    'fragments':         40,
+    'degenerator':       41,
+    'motorik':           42,
+    'wild_pebble':       43,
+    'turing_clouds':     44,
+    'hot_fuzz':          45,
+    'talker':            46,
+    'computer_grids':    47,
+    'cosmik_c1zzl3':     48,
+    'tesserae':          49,
+    'fr330hfr33':        50,
+    'pantograph':        51,
+    'chorgan':           52,
+    'turing_matrix':     53,
+    'offair2':           54,
+    'alloy':             55,
+    'acid':              56,
+    'sense_of_space':    57,
 };
 
 class WasmCardWrapper extends ComputerCard {
@@ -123,6 +113,26 @@ class WasmCardWrapper extends ComputerCard {
                 type: 'load_card',
                 cardIndex: cardIdx,
                 flashSectors: flashSectors
+            });
+
+            // Immediately send current knob/switch state so the card's startup
+            // lock_knobs() snapshot captures actual positions, not default zeros.
+            // Without this, the KnobLock references 0 but the UI knob is non-zero,
+            // causing the lock to immediately release and trigger spurious parameter changes.
+            const getNormMount = (id) => {
+                const s = componentStates?.[id];
+                const val = s ? parseFloat(s.value) : 0;
+                let min = s?.range?.[0] ?? (id.includes('knob-small') ? -135 : -150);
+                let max = s?.range?.[1] ?? (id.includes('knob-small') ? 135 : 150);
+                return (val - min) / (max - min);
+            };
+            const initSwitchVal = componentStates?.['switch-3way-computer']?.value ?? 1;
+            audioNodes['WasmComputerNode'].port.postMessage({
+                type: 'controls',
+                knobMain: getNormMount('knob-large-computer'),
+                knobX: getNormMount('knob-small-x'),
+                knobY: getNormMount('knob-small-y'),
+                switchZ: 2 - initSwitchVal  // UI 0=Up,1=Mid,2=Down → C++ 2=Up,1=Mid,0=Down
             });
         } else if (cardIdx === null) {
             console.warn(`[WasmCardWrapper] No WASM index for card ID: ${cardId}`);
@@ -278,6 +288,7 @@ class WasmCardWrapper extends ComputerCard {
         // Check for Editor
         const CARDS_WITH_WEB_EDITORS = {
             'flux': 'flux_manager.html',
+            'lens': 'lens.html',
             'drumdrum': 'editor.html',
             'reverb': 'reverb.html',
             'twists': 'twists.html',
@@ -286,15 +297,19 @@ class WasmCardWrapper extends ComputerCard {
             'modes': 'modes_manager.html',
             'grains': 'grains_manager.html',
             'stretchcore': 'index.html',
-            'degenerator': 'degenerator_manager.html',
+            'degenerator': 'index.html',
             'computer_grids': 'index.html',
             'rompler': 'rompler_manager.html',
             'mlrws': 'index.html',
             'blackbird': 'index.html',
             'clockwork': 'index.html',
             'cosmik_c1zzl3': 'index.html',
-            'fr330hfr33': 'Fr330hfr33.html',
-            'turing_matrix': 'index.html'
+            'fr330hfr33': 'index.html',
+            'turing_matrix': 'index.html',
+            'turing_machine': 'index.html',
+            'resonator': 'index.html',
+            'fragments': 'fragments_librarian.html',
+            'usb_audio_bridge': 'midi_config.html'
         };
 
         const editorBtn = document.getElementById('cardEditorBtn');
@@ -342,14 +357,20 @@ class WasmCardWrapper extends ComputerCard {
 
         const modal = document.createElement('div');
         modal.className = 'modal-overlay visible';
+
+        let cardFolder = cardId;
+        if (cardId === 'usb_audio_bridge') cardFolder = 'usb_audio';
+
         modal.innerHTML = `
             <div class="modal-content card-editor-modal">
-                <div class="modal-header">
-                    <h2>${cardId.toUpperCase()} EDITOR</h2>
+                <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center;">
+                        <h2 style="margin: 0; font-size: 18px; font-weight: bold;">${cardId.toUpperCase()} EDITOR</h2>
+                    </div>
                     <button class="close-btn">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <iframe class="card-editor-iframe" src="js/cards/wasm/web/${cardId}/${htmlFile}" allow="midi; serial"></iframe>
+                    <iframe class="card-editor-iframe" src="js/cards/wasm/web/${cardFolder}/${htmlFile}" allow="midi; serial"></iframe>
                 </div>
             </div>
         `;
@@ -718,17 +739,12 @@ class WasmCardWrapper extends ComputerCard {
 // Make globally available
 window.WasmCardWrapper = WasmCardWrapper;
 
-// WasmCardWrapper is dynamically mapped below and does not need to be registered directly.
-
 // Map all C++ cards in AVAILABLE_CARDS to use WasmCardWrapper
 if (window.AVAILABLE_CARDS) {
     window.AVAILABLE_CARDS.forEach(card => {
-        if (WASM_CARD_MAP[card.id] !== undefined) {
-            // Keep the custom JS usb_audio and midi cards, but map everything else in WASM_CARD_MAP to WASM!
-            if (card.id !== 'usb_audio' && card.id !== 'midi') {
-                card.class = WasmCardWrapper;
-                card.hasImplementation = true;
-            }
+        if (card.id !== 'none') {
+            card.class = WasmCardWrapper;
+            card.hasImplementation = true;
         }
     });
 }

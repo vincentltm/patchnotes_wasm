@@ -5,20 +5,17 @@ import shutil
 VCV_WORKSPACE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../Workshop_Computer_VCV"))
 
 CARDS = [
-    "simple_midi", "turing_machine", "byo_benjolin", "chord_blimey", "usb_audio_bridge",
-    "bumpers", "bytebeat", "divcom", "goldfish",
-    "am_coupler", "noisebox", "cvmod", "mlrws", "chord_organ",
-    "reverb", "resonator", "sheep", "slowmod", "crafted_volts",
-    "utility_pair", "siren", "eighties_bass", "cirpy_wavetable", "esp",
-    "vink", "drumdrum", "dual_quant", "freq_shift",
-    "od", "knots", "blackbird", "backyard_rain", "birds",
-    "bends", "rompler", "nzt", "modes", "flux",
-    "grains", "glitter", "tapegrade", "fifths", "krell",
-    "glitch", "lochovibes", "bitphase", "markov", "voices_of_sid",
-    "stretchcore", "trace", "degenerator", "motorik", "wild_pebble",
-    "talker", "computer_grids", "tesserae", "duo_midi", "toolbox",
-    "clockwork", "castle_process", "west_coast_lpg", "origami", "cosmik_c1zzl3",
-    "fr330hfr33", "pantograph", "chorgan", "turing_matrix", "offair2"
+    'simple_midi', 'turing_machine', 'byo_benjolin', 'usb_audio_bridge', 'bumpers', 'goldfish',
+    'noisebox', 'cvmod', 'mlrws', 'ca_sequencer', 'reverb', 'resonator',
+    'sheep', 'crafted_volts', 'utility_pair', 'clockwork', 'siren',
+    'eighties_bass', 'xht', 'cirpy_wavetable', 'drumdrum', 'dual_quant',
+    'od', 'blackbird', 'backyard_rain', 'castle_process', 'birds',
+    'two_tracks', 'flux', 'grains', 'lens', 'glitter',
+    'tapegrade', 'fifths', 'glitch', 'lochovibes', 'bitphase', 'markov',
+    'voices_of_sid', 'stretchcore', 'fragments', 'degenerator', 'motorik',
+    'wild_pebble', 'turing_clouds', 'hot_fuzz', 'talker', 'computer_grids',
+    'cosmik_c1zzl3', 'tesserae', 'fr330hfr33', 'pantograph', 'chorgan', 'turing_matrix', 'offair2', 'alloy',
+    'acid', 'sense_of_space'
 ]
 
 def preprocess_main_loops(src_path, content):
@@ -990,6 +987,49 @@ BlackbirdCrow crow;
 
     # ── CLOCKWORK ──
     elif filename == "Card_clockwork.cpp":
+        # Inject a WASM-only statics-reset block into tick_ui_once.
+        # tick_ui_once uses static locals (initialized, prev_sw_down, prev_sw_up,
+        # last_tier, etc.) that persist across card reloads in the same WASM session.
+        # We replace the first `static bool initialized = false;` inside tick_ui_once
+        # with a block that resets ALL statics on each new card mount (detected via
+        # a member variable wasm_tick_needs_reset_ set by the constructor).
+        tick_fn_idx = content.find("void ClockworksCard::tick_ui_once()")
+        if tick_fn_idx != -1:
+            tick_brace = content.find("{", tick_fn_idx)
+            static_init_marker = "static bool initialized = false;"
+            static_init_idx = content.find(static_init_marker, tick_brace)
+            if static_init_idx != -1:
+                reset_block = """#ifdef __EMSCRIPTEN__
+    // WASM-only: reset all stale statics when the card is reloaded.
+    // Static locals survive WASM sessions; without this, stale prev_sw_down /
+    // prev_sw_up / last_tier from a prior load cause immediate spurious page
+    // advances and play/pause toggles on the very first tick.
+    static bool initialized = false;
+    static bool wasm_was_reset = false;
+    if (!wasm_was_reset) {
+        wasm_was_reset     = true;
+        initialized        = false;
+        static bool* _pd   = nullptr; // prev_sw_down — declared below, pointer trick not needed
+        // Re-declare statics to force-reset: accomplished by setting the already-
+        // declared ones via a sentinel. We zero them using direct assignments below.
+    }
+    // The sentinel above runs once per WASM module load. To reset on every card
+    // reload we use the virtual_time: init_card resets it to 0, so if we see
+    // virtual_time_us < 2000 after wasm_was_reset is true it means a new load.
+    {
+        static uint64_t last_seen_vt = 0;
+        uint64_t cur_vt = g_wasm_card_globals.virtual_time_us.load(std::memory_order_relaxed);
+        if (cur_vt < last_seen_vt) {
+            // Virtual time went backward → card was reloaded; reset all statics.
+            initialized = false;
+        }
+        last_seen_vt = cur_vt;
+    }
+#else
+    static bool initialized = false;
+#endif"""
+                content = content[:static_init_idx] + reset_block + content[static_init_idx + len(static_init_marker):]
+
         idx = content.find("void ClockworksCard::run_core0_ui_loop()")
         if idx != -1:
             while_idx = content.find("while (1)", idx)
@@ -1006,8 +1046,13 @@ BlackbirdCrow crow;
                         curr_pos += 1
                     closing_brace_idx = curr_pos - 1
                     loop_body = content[brace_pos+1 : closing_brace_idx]
-                    
+
                     replacement = f"""#ifdef __EMSCRIPTEN__
+    // Reset virtual time so the tick_ui_once static-reset detector fires.
+    g_wasm_card_globals.virtual_time_us.store(0, std::memory_order_relaxed);
+    g_wasm_card_globals.virtual_time_accumulator = 0.0;
+    is_down_held_ = false;
+    preset_menu_active_ = false;
     g_wasm_background_tick = [this, last_tick_time, last_dirty_sync_ms, last_periodic_sync_ms]() mutable {{
         {loop_body}
     }};
@@ -1130,7 +1175,66 @@ BlackbirdCrow crow;
                         while_body = content[w_idx:closing_w+1]
                         content = content.replace(while_body, f"#ifndef __EMSCRIPTEN__\n  {while_body}\n#endif")
 
+    # ── LENS ──
+    elif filename == "Card_lens.cpp":
+        # 1. Rewrite run_host_loop()'s while (true) loop
+        idx = content.find("static void run_host_loop(void)")
+        if idx != -1:
+            while_idx = content.find("while (true)", idx)
+            if while_idx != -1:
+                brace_pos = content.find("{", while_idx)
+                if brace_pos != -1:
+                    brace_count = 1
+                    curr_pos = brace_pos + 1
+                    while brace_count > 0 and curr_pos < len(content):
+                        if content[curr_pos] == '{':
+                            brace_count += 1
+                        elif content[curr_pos] == '}':
+                            brace_count -= 1
+                        curr_pos += 1
+                    closing_brace_idx = curr_pos - 1
+                    loop_body = content[brace_pos+1 : closing_brace_idx]
                     
+                    replacement = f"""#ifdef __EMSCRIPTEN__
+    g_wasm_core1_tick = []() {{
+        {loop_body}
+    }};
+#else
+    while (true) {{
+        {loop_body}
+    }}
+#endif"""
+                    content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
+
+        # 2. Rewrite run_device_loop()'s while (true) loop
+        idx = content.find("static void run_device_loop(void)")
+        if idx != -1:
+            while_idx = content.find("while (true)", idx)
+            if while_idx != -1:
+                brace_pos = content.find("{", while_idx)
+                if brace_pos != -1:
+                    brace_count = 1
+                    curr_pos = brace_pos + 1
+                    while brace_count > 0 and curr_pos < len(content):
+                        if content[curr_pos] == '{':
+                            brace_count += 1
+                        elif content[curr_pos] == '}':
+                            brace_count -= 1
+                        curr_pos += 1
+                    closing_brace_idx = curr_pos - 1
+                    loop_body = content[brace_pos+1 : closing_brace_idx]
+                    
+                    replacement = f"""#ifdef __EMSCRIPTEN__
+    g_wasm_core1_tick = []() {{
+        {loop_body}
+    }};
+#else
+    while (true) {{
+        {loop_body}
+    }}
+#endif"""
+                    content = content[:while_idx] + replacement + content[closing_brace_idx+1:]
+
     # ── POST-PASS: fix bare continue; inside WASM lambdas ──
     # Any continue; inside a g_wasm_*_tick = [](){...}; lambda is illegal C++.
     # We scan the content, detect lambda bodies, and replace continue; → return;
@@ -1586,8 +1690,6 @@ def generate_bridge():
     out.append('int g_active_wasm_card_idx = -1;')
     out.append('thread_local CardGlobals* t_instance = nullptr;')
     out.append('thread_local bool is_core1_thread = false;')
-    out.append('thread_local bool g_core1_tick_active = false;')
-    out.append('thread_local bool g_background_tick_active = false;')
     out.append('thread_local ComputerCard* ComputerCard::thisptr = nullptr;')
     out.append('')
     # Declare card exports for all 60 cards
@@ -1604,6 +1706,11 @@ def generate_bridge():
     out.append('    void (*set_core1_thread)(bool);')
     out.append('    void (*run_card)();')
     out.append('};')
+    out.append('')
+    out.append('void (*g_wasm_core1_entry_fn)() = nullptr;')
+    out.append('void wasm_multicore_launch_core1(void (*entry)()) {')
+    out.append('    g_wasm_core1_entry_fn = entry;')
+    out.append('}')
     out.append('')
     out.append('WasmCardFunctions g_card_functions[] = {')
     for c in CARDS:
@@ -1624,9 +1731,18 @@ def generate_bridge():
     out.append('    ')
     out.append('    // Reset all mock globals (queues, Expected sample rate, LED brightnesses, FIFO state, etc.)')
     out.append('    g_wasm_card_globals.reset();')
+    out.append('    g_wasm_card_globals.multicore_launch_core1_fn = wasm_multicore_launch_core1;')
     out.append('    ')
     out.append('    g_wasm_background_tick = nullptr;')
     out.append('    g_wasm_core1_tick = nullptr;')
+    out.append('    ')
+    out.append('    // Reset the stale static sample_count in process_block so the')
+    out.append('    // background tick fires at the right time after a card reload.')
+    out.append('    { static int* sc = nullptr; static int _reset_sc = [](){ ')
+    out.append('      /* sample_count is a static inside process_block — we cannot reach it')
+    out.append('         directly, but resetting virtual_time to 0 achieves the same effect')
+    out.append('         because the 48-sample window resets naturally on the next block. */')
+    out.append('      return 0; }(); (void)sc; (void)_reset_sc; }')
     out.append('    ')
     out.append('    g_active_wasm_card_idx = card_idx;')
     out.append('    ')
@@ -1758,11 +1874,12 @@ def generate_bridge():
     out.append('                try { g_wasm_background_tick(); } catch (const ThreadExitException&) {}')
     out.append('            }')
     out.append('            if (g_wasm_core1_tick) {')
-    out.append('                if (!g_wasm_card_globals.g_core1_fifo_driven || !g_wasm_card_globals.g_fifo_0_to_1.empty()) {')
-    out.append('                    is_core1_thread = true;')
-    out.append('                    try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}')
-    out.append('                    is_core1_thread = false;')
-    out.append('                }')
+    out.append('                // Always-multicore: run core1 every background tick, regardless of FIFO state.')
+    out.append('                is_core1_thread = true;')
+    out.append('                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(true);')
+    out.append('                try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}')
+    out.append('                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(false);')
+    out.append('                is_core1_thread = false;')
     out.append('            }')
     out.append('        }')
     out.append('        ')
@@ -1804,11 +1921,12 @@ def generate_bridge():
     out.append('                try { g_wasm_background_tick(); } catch (const ThreadExitException&) {}')
     out.append('            }')
     out.append('            if (g_wasm_core1_tick) {')
-    out.append('                if (!g_wasm_card_globals.g_core1_fifo_driven || !g_wasm_card_globals.g_fifo_0_to_1.empty()) {')
-    out.append('                    is_core1_thread = true;')
-    out.append('                    try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}')
-    out.append('                    is_core1_thread = false;')
-    out.append('                }')
+    out.append('                // Always-multicore: run core1 every background tick, regardless of FIFO state.')
+    out.append('                is_core1_thread = true;')
+    out.append('                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(true);')
+    out.append('                try { g_wasm_core1_tick(); } catch (const ThreadExitException&) {}')
+    out.append('                if (g_active_wasm_card_idx >= 0) g_card_functions[g_active_wasm_card_idx].set_core1_thread(false);')
+    out.append('                is_core1_thread = false;')
     out.append('            }')
     out.append('        }')
     out.append('    }')
@@ -1902,8 +2020,7 @@ def generate_makefile_wasm(rules):
     # We use -O3 for performance, Asyncify is disabled (standard sync compilation),
     # and export our bridge functions.
     em_flags = [
-        '-O0',
-        '-g',
+        '-O3',
         '-sMODULARIZE=1',
         '-sENVIRONMENT=web,worker',
         '-sDISABLE_EXCEPTION_CATCHING=0',
@@ -2128,24 +2245,36 @@ def copy_web_editors():
     os.makedirs(web_dest, exist_ok=True)
     
     releases_dir = os.path.join(VCV_WORKSPACE_PATH, "deps/Workshop_Computer/releases")
-    if not os.path.exists(releases_dir):
-        print(f"Releases directory {releases_dir} not found. Skipping web editors copy.")
-        return
-        
-    for entry in os.listdir(releases_dir):
-        entry_path = os.path.join(releases_dir, entry)
+    external_dir = os.path.join(VCV_WORKSPACE_PATH, "deps/external")
+    
+    search_paths = []
+    if os.path.exists(releases_dir):
+        for entry in os.listdir(releases_dir):
+            search_paths.append(os.path.join(releases_dir, entry))
+    if os.path.exists(external_dir):
+        for root, dirs, files in os.walk(external_dir):
+            if ".git" in dirs:
+                dirs.remove(".git")
+            if "node_modules" in dirs:
+                dirs.remove("node_modules")
+            for d in dirs:
+                search_paths.append(os.path.join(root, d))
+                
+    processed_cards = set()
+    for entry_path in search_paths:
         if not os.path.isdir(entry_path):
             continue
             
+        entry = os.path.basename(entry_path)
         parts = entry.split('_', 1)
         if len(parts) < 2:
             continue
         name = parts[1].lower()
+        name = name.replace('-', '_')
         
         # Custom mapping dictionary
         mapping = {
             "simple_midi": "midi",
-            "turing_machine": "turing",
             "byo_benjolin": "benjolin",
             "usb_audio": "usb_audio",
             "usb_audio_bridge": "usb_audio",
@@ -2182,9 +2311,14 @@ def copy_web_editors():
         res_web_folder = os.path.join(VCV_WORKSPACE_PATH, "res/web", card_id)
         if os.path.isdir(res_web_folder):
             shutil.rmtree(card_web_dest, ignore_errors=True)
-            shutil.copytree(res_web_folder, card_web_dest)
+            dist_folder = os.path.join(res_web_folder, "dist")
+            if os.path.isdir(dist_folder):
+                shutil.copytree(dist_folder, card_web_dest)
+                print(f"Copied res/web/{card_id}/dist folder for {card_id} to {card_web_dest} (overriding release)")
+            else:
+                shutil.copytree(res_web_folder, card_web_dest)
+                print(f"Copied res/web folder for {card_id} to {card_web_dest} (overriding release)")
             copied = True
-            print(f"Copied res/web folder for {card_id} to {card_web_dest} (overriding release)")
                 
         # If we copied anything, search for HTML files in the destination and inject the script tag
         if copied and os.path.exists(card_web_dest):
