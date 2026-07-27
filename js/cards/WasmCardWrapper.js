@@ -1,10 +1,12 @@
 // Mapping from JS Card ID → WASM Card Index (0-based, matches g_card_functions[] in WasmCardBridge.cpp)
 // DO NOT edit manually — regenerate by running tools/wasm_build_prep.py
 const WASM_CARD_MAP = {
-    'midi':              0,  // simple_midi
+    'simple_midi':       0,
+    'midi':              0,
     'turing_machine':    1,
     'byo_benjolin':      2,
-    'usb_audio':         3,  // usb_audio_bridge
+    'usb_audio_bridge':  3,
+    'usb_audio':         3,
     'bumpers':           4,
     'goldfish':          5,
     'noisebox':          6,

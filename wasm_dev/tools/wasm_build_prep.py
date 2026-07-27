@@ -2155,29 +2155,21 @@ def generate_makefile_wasm(rules):
 def generate_wasm_card_map():
     """Rewrite the WASM_CARD_MAP block in js/cards/WasmCardWrapper.js
     to exactly match the CARDS list indices. Never edit the map manually."""
-    # Map from wasm internal name -> CardDefinitions.js id
-    WASM_TO_JS_ID = {
-        'simple_midi':    'midi',
-        'turing_machine': 'turing_machine',
-        'byo_benjolin':   'byo_benjolin',
-        'usb_audio_bridge': 'usb_audio',
-        'cirpy_wavetable': 'cirpy_wavetable',
-        'backyard_rain':  'backyard_rain',
-    }
-
     lines = []
-    lines.append('// Mapping from JS Card ID \u2192 WASM Card Index (0-based, matches g_card_functions[] in WasmCardBridge.cpp)')
-    lines.append('// DO NOT edit manually \u2014 regenerate by running tools/wasm_build_prep.py')
+    lines.append('// Mapping from JS Card ID → WASM Card Index (0-based, matches g_card_functions[] in WasmCardBridge.cpp)')
+    lines.append('// DO NOT edit manually — regenerate by running tools/wasm_build_prep.py')
     lines.append('const WASM_CARD_MAP = {')
     for i, wasm_name in enumerate(CARDS):
-        js_id = WASM_TO_JS_ID.get(wasm_name, wasm_name)
-        comment = f'  // {wasm_name}' if js_id != wasm_name else ''
-        lines.append(f"    '{js_id}':{' ' * max(1, 18 - len(js_id))}{i},{comment}")
+        lines.append(f"    '{wasm_name}':{' ' * max(1, 18 - len(wasm_name))}{i},")
+        if wasm_name == 'simple_midi':
+            lines.append(f"    'midi':{' ' * max(1, 18 - 4)}{i},")
+        elif wasm_name == 'usb_audio_bridge':
+            lines.append(f"    'usb_audio':{' ' * max(1, 18 - 9)}{i},")
     lines.append('};')
 
     new_map_block = '\n'.join(lines)
 
-    wrapper_path = os.path.join('..', 'js', 'cards', 'WasmCardWrapper.js')
+    wrapper_path = os.path.join(os.path.dirname(__file__), '../../js/cards/WasmCardWrapper.js')
     with open(wrapper_path, 'r', encoding='utf-8') as f:
         content = f.read()
 

@@ -54,6 +54,16 @@ extern "C" {
     void run_card_byo_benjolin();
 }
 extern "C" {
+    void set_thread_globals_usb_audio_bridge(CardGlobals* inst);
+    void set_core1_thread_usb_audio_bridge(bool is_core1);
+    void run_card_usb_audio_bridge();
+}
+extern "C" {
+    void set_thread_globals_bumpers(CardGlobals* inst);
+    void set_core1_thread_bumpers(bool is_core1);
+    void run_card_bumpers();
+}
+extern "C" {
     void set_thread_globals_goldfish(CardGlobals* inst);
     void set_core1_thread_goldfish(bool is_core1);
     void run_card_goldfish();
@@ -77,6 +87,11 @@ extern "C" {
     void set_thread_globals_ca_sequencer(CardGlobals* inst);
     void set_core1_thread_ca_sequencer(bool is_core1);
     void run_card_ca_sequencer();
+}
+extern "C" {
+    void set_thread_globals_reverb(CardGlobals* inst);
+    void set_core1_thread_reverb(bool is_core1);
+    void run_card_reverb();
 }
 extern "C" {
     void set_thread_globals_resonator(CardGlobals* inst);
@@ -209,6 +224,11 @@ extern "C" {
     void run_card_bitphase();
 }
 extern "C" {
+    void set_thread_globals_markov(CardGlobals* inst);
+    void set_core1_thread_markov(bool is_core1);
+    void run_card_markov();
+}
+extern "C" {
     void set_thread_globals_voices_of_sid(CardGlobals* inst);
     void set_core1_thread_voices_of_sid(bool is_core1);
     void run_card_voices_of_sid();
@@ -264,6 +284,11 @@ extern "C" {
     void run_card_cosmik_c1zzl3();
 }
 extern "C" {
+    void set_thread_globals_tesserae(CardGlobals* inst);
+    void set_core1_thread_tesserae(bool is_core1);
+    void run_card_tesserae();
+}
+extern "C" {
     void set_thread_globals_fr330hfr33(CardGlobals* inst);
     void set_core1_thread_fr330hfr33(bool is_core1);
     void run_card_fr330hfr33();
@@ -272,6 +297,16 @@ extern "C" {
     void set_thread_globals_pantograph(CardGlobals* inst);
     void set_core1_thread_pantograph(bool is_core1);
     void run_card_pantograph();
+}
+extern "C" {
+    void set_thread_globals_chorgan(CardGlobals* inst);
+    void set_core1_thread_chorgan(bool is_core1);
+    void run_card_chorgan();
+}
+extern "C" {
+    void set_thread_globals_turing_matrix(CardGlobals* inst);
+    void set_core1_thread_turing_matrix(bool is_core1);
+    void run_card_turing_matrix();
 }
 extern "C" {
     void set_thread_globals_offair2(CardGlobals* inst);
@@ -309,11 +344,14 @@ WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_simple_midi, set_core1_thread_simple_midi, run_card_simple_midi },
     { set_thread_globals_turing_machine, set_core1_thread_turing_machine, run_card_turing_machine },
     { set_thread_globals_byo_benjolin, set_core1_thread_byo_benjolin, run_card_byo_benjolin },
+    { set_thread_globals_usb_audio_bridge, set_core1_thread_usb_audio_bridge, run_card_usb_audio_bridge },
+    { set_thread_globals_bumpers, set_core1_thread_bumpers, run_card_bumpers },
     { set_thread_globals_goldfish, set_core1_thread_goldfish, run_card_goldfish },
     { set_thread_globals_noisebox, set_core1_thread_noisebox, run_card_noisebox },
     { set_thread_globals_cvmod, set_core1_thread_cvmod, run_card_cvmod },
     { set_thread_globals_mlrws, set_core1_thread_mlrws, run_card_mlrws },
     { set_thread_globals_ca_sequencer, set_core1_thread_ca_sequencer, run_card_ca_sequencer },
+    { set_thread_globals_reverb, set_core1_thread_reverb, run_card_reverb },
     { set_thread_globals_resonator, set_core1_thread_resonator, run_card_resonator },
     { set_thread_globals_sheep, set_core1_thread_sheep, run_card_sheep },
     { set_thread_globals_crafted_volts, set_core1_thread_crafted_volts, run_card_crafted_volts },
@@ -340,6 +378,7 @@ WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_glitch, set_core1_thread_glitch, run_card_glitch },
     { set_thread_globals_lochovibes, set_core1_thread_lochovibes, run_card_lochovibes },
     { set_thread_globals_bitphase, set_core1_thread_bitphase, run_card_bitphase },
+    { set_thread_globals_markov, set_core1_thread_markov, run_card_markov },
     { set_thread_globals_voices_of_sid, set_core1_thread_voices_of_sid, run_card_voices_of_sid },
     { set_thread_globals_stretchcore, set_core1_thread_stretchcore, run_card_stretchcore },
     { set_thread_globals_fragments, set_core1_thread_fragments, run_card_fragments },
@@ -351,8 +390,11 @@ WasmCardFunctions g_card_functions[] = {
     { set_thread_globals_talker, set_core1_thread_talker, run_card_talker },
     { set_thread_globals_computer_grids, set_core1_thread_computer_grids, run_card_computer_grids },
     { set_thread_globals_cosmik_c1zzl3, set_core1_thread_cosmik_c1zzl3, run_card_cosmik_c1zzl3 },
+    { set_thread_globals_tesserae, set_core1_thread_tesserae, run_card_tesserae },
     { set_thread_globals_fr330hfr33, set_core1_thread_fr330hfr33, run_card_fr330hfr33 },
     { set_thread_globals_pantograph, set_core1_thread_pantograph, run_card_pantograph },
+    { set_thread_globals_chorgan, set_core1_thread_chorgan, run_card_chorgan },
+    { set_thread_globals_turing_matrix, set_core1_thread_turing_matrix, run_card_turing_matrix },
     { set_thread_globals_offair2, set_core1_thread_offair2, run_card_offair2 },
     { set_thread_globals_alloy, set_core1_thread_alloy, run_card_alloy },
     { set_thread_globals_acid, set_core1_thread_acid, run_card_acid },
@@ -388,7 +430,7 @@ EMSCRIPTEN_KEEPALIVE void init_card(int card_idx) {
     
     g_active_wasm_card_idx = card_idx;
     
-    if (card_idx < 0 || card_idx >= 51) return;
+    if (card_idx < 0 || card_idx >= 58) return;
     
     // Sync new card thread local globals
     g_card_functions[card_idx].set_thread_globals(&g_wasm_card_globals);
